@@ -28,8 +28,8 @@ function loadDeps() {
     BrowserServerBackend: pwReq('lib/mcp/browser/browserServerBackend.js').BrowserServerBackend,
     contextFactory:       pwReq('lib/mcp/browser/browserContextFactory.js').contextFactory,
     resolveConfig:        pwReq('lib/mcp/browser/config.js').resolveConfig,
-    commands:             pwReq('lib/mcp/terminal/commands.js').commands,
-    parseCommand:         pwReq('lib/mcp/terminal/command.js').parseCommand,
+    commands:             pwReq('lib/cli/daemon/commands.js').commands,
+    parseCommand:         pwReq('lib/cli/daemon/command.js').parseCommand,
   };
   return _deps;
 }

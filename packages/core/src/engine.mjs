@@ -179,6 +179,7 @@ export class Engine {
     if (opts.connect) {
       const port = typeof opts.connect === 'number' ? opts.connect : 9222;
       config.browser.cdpEndpoint = `http://localhost:${port}`;
+      config.browser.isolated = false;
     }
 
     return await deps.resolveConfig(config);

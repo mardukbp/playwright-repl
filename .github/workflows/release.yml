@@ -18,7 +18,8 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm test
+      - run: npm run build
+      - run: npm test --workspaces --if-present
 
   release:
     runs-on: ubuntu-latest

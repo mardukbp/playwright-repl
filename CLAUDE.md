@@ -11,26 +11,46 @@ Think of it as a **keyword-driven test runner** (like Robot Framework) backed by
 ```
 playwright-repl/
 ├── package.json                    # Root workspace config (npm workspaces)
+├── tsconfig.base.json              # Shared TypeScript compiler options
 ├── packages/
-│   ├── core/                       # Shared engine + utilities
+│   ├── core/                       # Shared engine + utilities (TypeScript, tsc)
 │   │   ├── src/
-│   │   │   ├── engine.mjs          # Wraps BrowserServerBackend in-process
-│   │   │   ├── parser.mjs          # Command parsing + alias resolution
-│   │   │   ├── page-scripts.mjs    # Text locators + assertion helpers
-│   │   │   ├── completion-data.mjs # Ghost completion items
-│   │   │   ├── colors.mjs          # ANSI color helpers
-│   │   │   └── resolve.mjs         # COMMANDS map, minimist re-export
+│   │   │   ├── engine.ts           # Wraps BrowserServerBackend in-process
+│   │   │   ├── parser.ts           # Command parsing + alias resolution
+│   │   │   ├── page-scripts.ts     # Text locators + assertion helpers
+│   │   │   ├── completion-data.ts  # Ghost completion items
+│   │   │   ├── extension-server.ts # HTTP server for extension commands
+│   │   │   ├── colors.ts           # ANSI color helpers
+│   │   │   └── resolve.ts          # COMMANDS map, minimist re-export
+│   │   ├── dist/                   # Compiled output (gitignored)
 │   │   └── test/
 │   │
-│   └── cli/                        # Terminal REPL (published as "playwright-repl")
-│       ├── bin/
-│       │   └── playwright-repl.mjs # CLI entry point
+│   ├── cli/                        # Terminal REPL (published as "playwright-repl", TypeScript, tsc)
+│   │   ├── src/
+│   │   │   ├── playwright-repl.ts  # CLI entry point (compiles to dist/)
+│   │   │   ├── repl.ts             # Interactive readline loop
+│   │   │   ├── recorder.ts         # Session recording/replay
+│   │   │   └── index.ts            # Public API exports
+│   │   ├── dist/                   # Compiled output (gitignored)
+│   │   ├── test/
+│   │   └── examples/               # .pw session files
+│   │
+│   └── extension/                  # Chrome side panel extension (TypeScript, Vite)
+│       ├── public/
+│       │   └── manifest.json       # Manifest V3 config (copied to dist/ by Vite)
 │       ├── src/
-│       │   ├── repl.mjs            # Interactive readline loop
-│       │   ├── recorder.mjs        # Session recording/replay
-│       │   └── index.mjs           # Public API exports
-│       ├── test/
-│       └── examples/               # .pw session files
+│       │   ├── background.ts       # Side panel behavior + recording handlers
+│       │   ├── panel/              # Side panel UI
+│       │   │   ├── panel.html
+│       │   │   ├── panel.ts
+│       │   │   └── panel.css
+│       │   ├── content/
+│       │   │   └── recorder.ts     # Event recorder injected into pages
+│       │   └── lib/
+│       │       └── converter.ts    # .pw → Playwright test export
+│       ├── dist/                   # Vite build output (gitignored, loaded by Chrome)
+│       ├── vite.config.ts          # Vite build config (3 entry points)
+│       └── e2e/                    # Playwright E2E tests
 ```
 
 ## Architecture
@@ -75,7 +95,7 @@ browser:     locator.click()
 Chrome:      actual DOM click event
 ```
 
-### Engine (packages/core/src/engine.mjs)
+### Engine (packages/core/src/engine.ts)
 
 The `Engine` class wraps Playwright's `BrowserServerBackend` in-process:
 
@@ -90,6 +110,7 @@ await engine.close();
 Three connection modes via `start(opts)`:
 - **launch** (default): `contextFactory(config)` → new browser
 - **connect**: `opts.connect = 9222` → `cdpEndpoint` → `connectOverCDP()`
+- **extension**: `opts.extension = true` → starts `CommandServer`, Chrome launched with `--remote-debugging-port`, side panel sends commands via HTTP
 - Dependency injection: constructor accepts `deps` for testing
 
 Key Playwright internals used (via `createRequire`):
@@ -98,6 +119,31 @@ Key Playwright internals used (via `createRequire`):
 - `playwright/lib/mcp/browser/config` → `resolveConfig`
 - `playwright/lib/mcp/terminal/commands` → `commands` map
 - `playwright/lib/mcp/terminal/command` → `parseCommand`
+
+### CommandServer (packages/core/src/extension-server.ts)
+
+When `--extension` mode is used, `CommandServer` starts an HTTP server:
+
+```
+┌──────────────────────────────────────────────┐
+│  Chrome Extension (Side Panel)               │
+│  panel.js ─── fetch POST /run ───────────┐   │
+│     ▲                                    │   │
+│     │ JSON response                      │   │
+└─────┼────────────────────────────────────┼───┘
+      │                                    │
+      │                                    ▼
+┌─────────────────────────────────────────────────────┐
+│  CommandServer (HTTP :3000)                          │
+│    ├── POST /run   ← panel sends commands here      │
+│    └── GET /health ← panel checks server status     │
+│  Engine → connectOverCDP → CDP :3001 → Chrome       │
+└─────────────────────────────────────────────────────┘
+```
+
+- **Direct CDP**: Engine connects to Chrome via `--remote-debugging-port` (no relay)
+- **Command channel**: panel sends commands via `fetch()` → CommandServer → `Engine.run()` → results back
+- **Recording**: extension-side (inject recorder.js via `chrome.scripting.executeScript`)
 
 ### Element Refs (e1, e5, etc.)
 
@@ -137,17 +183,19 @@ async function processQueue() {
 
 ## Tech Stack
 
-- **Runtime**: Node.js (ESM modules, `.mjs`)
+- **Runtime**: Node.js (ESM modules)
+- **Language**: TypeScript throughout — `packages/core` and `packages/cli` compiled via `tsc`; `packages/extension` compiled via Vite
+- **Build**: `tsc --build packages/core packages/cli` (project references) + Vite for extension. Run `npm run build` at root.
 - **Dependencies**: `minimist` (command parsing), `playwright@>=1.59.0-alpha` (browser engine)
-- **Monorepo**: npm workspaces (`packages/core`, `packages/cli`)
-- **Testing**: vitest
+- **Monorepo**: npm workspaces (`packages/core`, `packages/cli`, `packages/extension`)
+- **Testing**: vitest (unit tests), Playwright Test (extension E2E)
 - **Key insight**: `playwright@1.59.0-alpha` includes `lib/mcp/browser/` (BrowserServerBackend, contextFactory).
   The stable `playwright@1.58` does NOT. Once 1.59 goes stable, the alpha pin can be removed.
-- No build step — plain ESM JavaScript
 
 ## Code Style
 
 - ESM imports (`import ... from`)
+- TypeScript with `"module": "NodeNext"` — relative imports in core/cli use `.js` extensions (resolved to `.ts` at compile time)
+- Extension uses Vite — standard `.ts` imports (no `.js` extension needed)
 - Async/await throughout
-- No TypeScript (keep it simple, scripting-oriented)
 - Sections separated by `// ─── Section Name ───` comments

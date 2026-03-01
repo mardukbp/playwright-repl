@@ -9,8 +9,11 @@ import { COMMANDS } from './resolve.js';
 // ─── Meta-commands ───────────────────────────────────────────────────────────
 
 const META_COMMANDS = [
+  { cmd: '.clear',     desc: 'Clear terminal output' },
   { cmd: '.help',      desc: 'Show available commands' },
   { cmd: '.aliases',   desc: 'Show command aliases' },
+  { cmd: '.history',   desc: 'Show command history' },
+  { cmd: '.history clear', desc: 'Clear command history' },
   { cmd: '.status',    desc: 'Show connection status' },
   { cmd: '.reconnect', desc: 'Reconnect to daemon' },
   { cmd: '.record',    desc: 'Start recording commands' },

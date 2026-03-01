@@ -9,7 +9,7 @@
 - [x] **Auto-inject `expect` in `run-code`** — Not feasible: Playwright's `browser_run_code` uses `vm.createContext()` with only `page` in scope; `require()` is not available in the sandbox.
 
 ## Medium Priority
-- [ ] **CLI `clear` command** — Add `clear` to the CLI REPL to clear terminal output, matching the extension behavior. ([#15](https://github.com/stevez/playwright-repl/issues/15))
+- [x] **CLI `clear` command** — Add `clear` to the CLI REPL to clear terminal output, matching the extension behavior. ([#15](https://github.com/stevez/playwright-repl/issues/15))
 - [ ] **Chaining selectors with `>>`** — When args contain `>>`, use `page.locator(<chained>)` instead of ref-based lookup. Similar to `run-code` logic. ([#16](https://github.com/stevez/playwright-repl/issues/16))
 - [ ] **Upgrade editor to CodeMirror 6** — Replace plain `<textarea>` in `EditorPane.tsx` with CodeMirror 6 (~30KB gzipped). Gains: syntax highlighting, proper selections, undo/redo, search. Potential custom `.pw` syntax mode later.
 - [ ] **Toolbar icons** — Replace text buttons (Open, Save, Export) with SVG icons in `Toolbar.tsx`, similar to existing sun/moon toggle in `Icons.tsx`.

@@ -36,6 +36,7 @@ export interface ReplContext {
   opts: ReplOpts;
   log: (...args: unknown[]) => void;
   historyFile: string;
+  sessionHistory: string[];
   commandCount: number;
   errors: number;
 }
@@ -84,6 +85,9 @@ export function showHelp(): void {
   console.log(`  .pause                Pause/resume recording`);
   console.log(`  .discard              Discard recording`);
   console.log(`  .replay <filename>    Replay a recorded session`);
+  console.log(`  .clear                Clear terminal output`);
+  console.log(`  .history              Show command history`);
+  console.log(`  .history clear        Clear command history`);
   console.log(`  .exit                 Exit REPL\n`);
 }
 
@@ -177,6 +181,24 @@ export async function processLine(ctx: ReplContext, line: string): Promise<void>
   if (line === '.help' || line === '?') return showHelp();
   if (line === '.aliases') return showAliases();
   if (line === '.status') return showStatus(ctx);
+
+  if (line === '.clear') {
+    console.clear();
+    ctx.rl!.prompt();
+    return;
+  }
+
+  if (line === '.history clear') {
+    ctx.sessionHistory.length = 0;
+    console.log('History cleared.');
+    return;
+  }
+
+  if (line === '.history') {
+    const hist = ctx.sessionHistory;
+    console.log(hist.length ? hist.join('\n') : '(no history)');
+    return;
+  }
 
   if (line === '.exit' || line === '.quit') {
     ctx.conn.close();
@@ -540,6 +562,7 @@ export function startCommandLoop(ctx: ReplContext): void {
       const line = commandQueue.shift()!;
       await processLine(ctx, line);
       if (line.trim()) {
+        ctx.sessionHistory.push(line.trim());
         try {
           fs.mkdirSync(path.dirname(ctx.historyFile), { recursive: true });
           fs.appendFileSync(ctx.historyFile, line.trim() + '\n');
@@ -602,8 +625,12 @@ export function promptStr(ctx: ReplContext): string {
  * the exact match is included so the user can cycle through all options.
  */
 export function getGhostMatches(cmds: string[], input: string): string[] {
-  if (input.length > 0 && !input.includes(' ')) {
-    const longer = cmds.filter(cmd => cmd.startsWith(input) && cmd !== input);
+  if (input.length > 0) {
+    // Only match commands with spaces if the input itself contains a space
+    const candidates = input.includes(' ')
+      ? cmds.filter(cmd => cmd.includes(' '))
+      : cmds;
+    const longer = candidates.filter(cmd => cmd.startsWith(input) && cmd !== input);
     if (longer.length > 0 && cmds.includes(input)) longer.push(input);
     return longer;
   }
@@ -716,7 +743,7 @@ export async function startRepl(opts: ReplOpts = {}): Promise<void> {
   const session = new SessionManager();
   const historyDir = path.join(os.homedir(), '.playwright-repl');
   const historyFile = path.join(historyDir, '.repl-history');
-  const ctx: ReplContext = { conn, session, rl: null, opts, log, historyFile, commandCount: 0, errors: 0 };
+  const ctx: ReplContext = { conn, session, rl: null, opts, log, historyFile, sessionHistory: [], commandCount: 0, errors: 0 };
 
   // Auto-start recording if --record was passed
   if (opts.record) {

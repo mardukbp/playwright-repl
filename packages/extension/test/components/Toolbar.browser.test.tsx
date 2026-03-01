@@ -454,7 +454,7 @@ describe('Toolbar component tests', () => {
     expect(window.chrome.runtime.sendMessage).not.toHaveBeenCalled();
   })
 
-  it('should not send chrome message whtn tabs[0] is null', async () => {
+  it('should not send chrome message when tabs[0] is null', async () => {
     window.chrome.tabs.query = vi.fn().mockResolvedValue([null]);
 
     const dispatch = vi.fn();

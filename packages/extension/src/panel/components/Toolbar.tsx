@@ -83,14 +83,14 @@ function Toolbar({ editorContent, fileName, stepLine, dispatch }: ToolbarProps) 
     }
 
     function findExecutableIndex(fromIndex: number) {
-        let excutableIndex = -1;
+        let executableIndex = -1;
         for (let i = fromIndex; i < lines.length; i++) {
             if (!lines[i].startsWith('#') && lines[i].trim()) {
-                excutableIndex = i;
+                executableIndex = i;
                 break;
             }
         }
-        return excutableIndex;
+        return executableIndex;
     }
     async function handleStep() {
         if (stepLine === -1) {
@@ -131,7 +131,7 @@ function Toolbar({ editorContent, fileName, stepLine, dispatch }: ToolbarProps) 
 
     function commitPort(e: React.SyntheticEvent<HTMLInputElement>) {
         const val = parseInt(e.currentTarget.value, 10);
-        if(val > 0 && val < 65535) {
+        if(val > 0 && val <= 65535) {
             setPort(val);
             setServerPort(val);
         }

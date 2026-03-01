@@ -1,9 +1,7 @@
 /**
  * Shared dependencies and command vocabulary.
- * No @playwright/cli — we start the daemon ourselves via daemon-launcher.cjs.
  */
 
-import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -13,12 +11,8 @@ const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 export const minimist: (args: string[], opts?: Record<string, unknown>) => Record<string, unknown> & { _: string[] } = require('minimist');
 
-const pkgUrl = new URL('../package.json', import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 export const replVersion: string = require('../../cli/package.json').version;
-
-// Must match what daemon-launcher.cjs computes via require.resolve('../package.json')
-export const packageLocation: string = fileURLToPath(pkgUrl);
 
 // ─── Command vocabulary ──────────────────────────────────────────────────────
 

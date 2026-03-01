@@ -35,21 +35,25 @@ playwright-repl/
 │   │   ├── test/
 │   │   └── examples/               # .pw session files
 │   │
-│   └── extension/                  # Chrome side panel extension (TypeScript, Vite)
+│   └── extension/                  # Chrome side panel extension (React, Vite, Tailwind)
 │       ├── public/
 │       │   └── manifest.json       # Manifest V3 config (copied to dist/ by Vite)
 │       ├── src/
 │       │   ├── background.ts       # Side panel behavior + recording handlers
-│       │   ├── panel/              # Side panel UI
+│       │   ├── panel/              # Side panel UI (React)
 │       │   │   ├── panel.html
-│       │   │   ├── panel.ts
-│       │   │   └── panel.css
-│       │   ├── content/
-│       │   │   └── recorder.ts     # Event recorder injected into pages
-│       │   └── lib/
-│       │       └── converter.ts    # .pw → Playwright test export
+│       │   │   ├── panel.tsx       # React entry point
+│       │   │   ├── panel.css       # Theme variables + residual styles
+│       │   │   ├── App.tsx         # Root component
+│       │   │   ├── reducer.ts      # useReducer state management
+│       │   │   ├── components/     # Toolbar, EditorPane, ConsolePane, etc.
+│       │   │   ├── hooks/          # useCommandHistory
+│       │   │   └── lib/            # server, run, autocomplete, filter, etc.
+│       │   └── content/
+│       │       └── recorder.ts     # Event recorder injected into pages
 │       ├── dist/                   # Vite build output (gitignored, loaded by Chrome)
 │       ├── vite.config.ts          # Vite build config (3 entry points)
+│       ├── test/                   # Vitest browser component tests
 │       └── e2e/                    # Playwright E2E tests
 ```
 
@@ -117,8 +121,8 @@ Key Playwright internals used (via `createRequire`):
 - `playwright/lib/mcp/browser/browserServerBackend` → `BrowserServerBackend`
 - `playwright/lib/mcp/browser/browserContextFactory` → `contextFactory`
 - `playwright/lib/mcp/browser/config` → `resolveConfig`
-- `playwright/lib/mcp/terminal/commands` → `commands` map
-- `playwright/lib/mcp/terminal/command` → `parseCommand`
+- `playwright/lib/cli/daemon/commands` → `commands` map
+- `playwright/lib/cli/daemon/command` → `parseCommand`
 
 ### CommandServer (packages/core/src/extension-server.ts)
 
@@ -134,7 +138,7 @@ When `--extension` mode is used, `CommandServer` starts an HTTP server:
       │                                    │
       │                                    ▼
 ┌─────────────────────────────────────────────────────┐
-│  CommandServer (HTTP :3000)                          │
+│  CommandServer (HTTP :6781)                          │
 │    ├── POST /run   ← panel sends commands here      │
 │    └── GET /health ← panel checks server status     │
 │  Engine → connectOverCDP → CDP :3001 → Chrome       │

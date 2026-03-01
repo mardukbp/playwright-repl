@@ -2,10 +2,10 @@
 
 ## High Priority
 
-- [ ] **History loads in wrong order** — `packages/cli/src/repl.ts`: `.reverse()` before `.push()` means Up arrow shows oldest commands first instead of most recent
+- [x] **History loads in wrong order** — Investigated: current `.reverse()` + `.push()` logic is actually correct (newest at index 0). Not a bug.
 - [x] **Dark mode toggle** — Sun/moon SVG toggle in Toolbar, `useEffect` toggles `.theme-dark` class on `<html>`, persisted via `localStorage`.
 - [x] **Extension spawn path bug** — `engine.ts:133` resolves `--load-extension` to `packages/extension` instead of `packages/extension/dist`. Chrome needs the folder containing `manifest.json`, which is in `dist/`. Fix: append `/dist` to the resolved path.
-- [ ] **Auto-inject `expect` in `run-code`** — auto-prepend `const { expect } = require('@playwright/test')` in the `run-code` auto-wrap so users can write `run-code await expect(page).toHaveTitle('Todo')` without manual imports
+- [x] **Auto-inject `expect` in `run-code`** — Not feasible: Playwright's `browser_run_code` uses `vm.createContext()` with only `page` in scope; `require()` is not available in the sandbox.
 
 ## Medium Priority
 

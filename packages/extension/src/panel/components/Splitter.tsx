@@ -4,7 +4,7 @@ interface SplitterProps {
     editorPaneRef: React.RefObject<HTMLDivElement | null>
 }
 function Splitter({editorPaneRef}: SplitterProps) {
-    const [isDragging, setisDragging] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
 
@@ -17,7 +17,7 @@ function Splitter({editorPaneRef}: SplitterProps) {
     };
 
     function handleMouseUp() {
-        setisDragging(false);
+        setIsDragging(false);
         dragStartHeight.current = 0;
         dragStartY.current = 0;
         document.body.style.cursor = '';
@@ -30,7 +30,7 @@ function Splitter({editorPaneRef}: SplitterProps) {
         dragStartY.current = event.clientY;
         const editorPane = editorPaneRef.current;
         dragStartHeight.current = editorPane!.offsetHeight;
-        setisDragging(true);
+        setIsDragging(true);
     }
 
     useEffect(() => {

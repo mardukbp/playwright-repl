@@ -185,10 +185,11 @@ function resolveArgs(args: ParsedArgs): ParsedArgs {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let data = '';
     req.on('data', (chunk: Buffer) => data += chunk);
     req.on('end', () => resolve(data));
+    req.on('error', reject);
   });
 }
 

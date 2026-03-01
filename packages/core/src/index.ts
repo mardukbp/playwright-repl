@@ -2,7 +2,7 @@
  * @playwright-repl/core — shared engine, parser, and utilities.
  */
 
-export { minimist, replVersion, packageLocation, COMMANDS } from './resolve.js';
+export { minimist, replVersion, COMMANDS } from './resolve.js';
 export { parseInput, ALIASES, ALL_COMMANDS, booleanOptions } from './parser.js';
 export { buildCompletionItems } from './completion-data.js';
 export { c } from './colors.js';

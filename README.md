@@ -4,13 +4,13 @@
 
 Interactive browser automation powered by Playwright — use it from your **terminal** or as a **Chrome side panel**.
 
-Two frontends, one engine: the CLI gives you a terminal REPL with recording and replay; the Chrome extension gives you a DevTools panel with a script editor and visual recorder. Both run the same 35+ Playwright commands through a shared Engine — no command duplication.
+Two frontends, one engine: the CLI gives you a terminal REPL with recording and replay; the Chrome extension gives you a DevTools panel with a script editor and visual recorder. Both run the same 55+ Playwright commands through a shared Engine — no command duplication.
 
 ## Why?
 
 **playwright-repl** runs Playwright's browser tools in-process. Type a command, see the result instantly. No code, no tokens, no setup.
 
-- **CLI** — terminal REPL with recording, replay, piping, and 50+ aliases
+- **CLI** — terminal REPL with recording, replay, piping, and 20+ aliases
 - **Extension** — Chrome DevTools panel with script editor, recorder, and light/dark themes
 - **Same commands everywhere** — `click`, `fill`, `snapshot`, `verify-text` work identically in both
 
@@ -137,7 +137,7 @@ playwright-repl --connect         # default port 9222
 playwright-repl --connect 9333    # custom port
 
 # Extension mode (launches Chrome with side panel)
-playwright-repl --extension              # default port 3000
+playwright-repl --extension              # default port 6781
 playwright-repl --extension --port 4000  # custom command server port
 ```
 
@@ -151,7 +151,7 @@ playwright-repl --extension --port 4000  # custom command server port
 | `--profile <dir>` | Persistent profile directory |
 | `--connect [port]` | Connect to existing Chrome via CDP (default: `9222`) |
 | `--extension` | Launch Chrome with side panel extension and command server |
-| `--port <number>` | Command server port (default: `3000`) |
+| `--port <number>` | Command server port (default: `6781`) |
 | `--config <file>` | Path to config file |
 | `--replay <files...>` | Replay `.pw` file(s) or folder(s) |
 | `--record <file>` | Start REPL with recording to file |

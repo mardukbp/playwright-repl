@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.2 — Command History & Ghost Text Fix
+
+**2026-03-01**
+
+### Features
+
+- **`history` command**: Type `history` in the extension prompt to view command history. `history clear` clears it. Both are local commands — no server connection needed.
+- **Command history module**: Refactored from React hook (`useCommandHistory`) to plain module-level store (`lib/command-history.ts`). No React dependencies, shared via ES module singleton.
+
+### Fixed
+
+- **Ghost text persists on complete commands**: Typing a complete command name (e.g., `history`) no longer shows ghost suggestions for longer matches (e.g., `history clear`). Ghost text now stops when input exactly matches a known command.
+- **`history clear` leaking into history**: Local commands (`help`, `clear`, `history`, `history clear`) are no longer recorded in command history. Only server commands appear in arrow-up recall.
+
+---
+
 ## v0.7.1 — Dark Mode & Bug Fixes
 
 **2026-03-01**

@@ -2,7 +2,7 @@ import {COMMAND_NAMES} from '@/lib/commands';
 
 export function getGhostText(input: string) :string {
         const val = input.toLowerCase();
-        if(!val) return '';
+        if(!val || COMMAND_NAMES.includes(val)) return '';
         const match = COMMAND_NAMES.find(command => command.startsWith(val) && command !== val)
         if(!match) return '';
         return match.slice(input.length);

@@ -24,6 +24,8 @@ export const COMMANDS: Record<string, CommandInfo> = {
     'go-forward':           { desc: 'Go forward' },
     'goto':                 { desc: 'Navigate to a URL' },
     'help':                 { desc: 'Show available commands' },
+    'history':              { desc: 'Show command history' },
+    'history clear':        { desc: 'Clear command history' },
     'hover':                { desc: 'Hover over element' },
     'localstorage-clear':   { desc: 'Clear localStorage' },
     'localstorage-delete':  { desc: 'Delete localStorage' },

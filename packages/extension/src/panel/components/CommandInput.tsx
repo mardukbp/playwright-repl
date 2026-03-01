@@ -1,5 +1,5 @@
 import { useState } from "react";
-import useCommandHistory from '@/hooks/useCommandHistory'
+import { goUp, goDown } from '@/lib/command-history';
 import { getGhostText, getMatches } from "@/lib/autocomplete";
 
 interface CommandInputProps {
@@ -11,7 +11,6 @@ type KeyHandler = (e: React.KeyboardEvent, next: () => void) => void;
 
 function CommandInput({ onSubmit }: CommandInputProps) {
     const [input, setInput] = useState<string>('');
-    const { add, goUp, goDown } = useCommandHistory();
     const [selectIndex, setSelectIndex] = useState(-1);
 
     const matches = getMatches(input);
@@ -54,7 +53,6 @@ function CommandInput({ onSubmit }: CommandInputProps) {
             const ghost = getGhostText(input);
             if (ghost) setInput(input + ghost);
         } else if (e.key == 'Enter') {
-            add(input);
             onSubmit(input);
             setInput('');
         }

@@ -1,0 +1,58 @@
+import { executeCommand } from '@/lib/server';
+import { filterResponse } from '@/lib/filter';
+import { COMMANDS } from '@/lib/commands';
+import type { CommandResult } from '@/types';
+import type { Action } from '@/reducer';
+
+function runLocalCommand(command: string, dispatch: React.Dispatch<Action>): boolean {
+    if (command.trim().startsWith('#')) {
+        dispatch({ type: 'ADD_LINE', line: { text: command, type: 'comment' } });
+        return true;
+    }
+    if (command.trim().toLowerCase() === 'clear') {
+        dispatch({ type: 'CLEAR_CONSOLE' });
+        return true;
+    }
+    if (command.trim().toLowerCase() === 'help') {
+        const lines = Object.entries(COMMANDS)
+            .map(([name, info]) => `  ${name.padEnd(22)} ${info.desc}`)
+            .join('\n');
+        dispatch({ type: 'ADD_LINE', line: { text: `Available commands:\n${lines}`, type: 'info' } });
+        return true;
+    }
+
+    return false;
+}
+export async function runAndDispatch(command: string, dispatch: React.Dispatch<Action>): Promise<CommandResult> {
+   
+    if (!command.trim() || runLocalCommand(command, dispatch))
+         return { text: '', isError: false };
+
+    dispatch({ type: 'COMMAND_SUBMITTED', line: { text: command, type: 'command' } });
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const result = await executeCommand(command, tab?.url);
+        const cmdName = command.trim().split(/\s+/)[0];
+        const text = filterResponse(result.text, cmdName);
+        if (cmdName === 'snapshot') {
+            dispatch({ type: 'COMMAND_SUCCESS', line: { text, type: 'snapshot' } });
+        } else {
+            dispatch({
+                type: 'COMMAND_SUCCESS', line: {
+                    text,
+                    type: result.isError ? 'error' : result.image ? 'screenshot' : 'success',
+                    image: result.image
+                }
+            });
+        }
+        return result;
+    } catch {
+        dispatch({
+            type: 'COMMAND_ERROR', line: {
+                text: 'Not connected to server. Run: playwright-repl --extension',
+                type: 'error'
+            }
+        });
+        return { text: '', isError: true };
+    }
+}

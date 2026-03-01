@@ -251,7 +251,7 @@ export class Engine {
 
     // Commands like "close", "list", "kill-all" have empty toolName.
     if (!toolName)
-      return { text: `Command "${args._[0]}" is not supported in engine mode.` };
+      return { text: `Command "${args._[0]}" is not supported in engine mode.`, isError: true };
 
     toolParams._meta = { cwd: args.cwd || process.cwd() };
 
@@ -321,8 +321,8 @@ export class Engine {
       server: {},
       network: {},
       timeouts: {
-        action: opts.extension ? 30000 : 5000,
-        navigation: opts.extension ? 15000 : 60000,
+        action: 5000,
+        navigation: 15000,
       },
     };
 

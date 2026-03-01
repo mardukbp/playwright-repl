@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.1 — Dark Mode & Bug Fixes
+
+**2026-03-01**
+
+### Features
+
+- **Dark mode toggle**: Sun/moon SVG button in the extension toolbar. Toggles `.theme-dark` CSS class on the document root, switching all CSS variables instantly. Preference persisted via `localStorage`.
+
+### Fixed
+
+- **Extension spawn path**: `--load-extension` now correctly points to `packages/extension/dist` (where `manifest.json` lives) instead of `packages/extension`.
+
+---
+
 ## v0.7.0 — Extension React & Tailwind Migration
 
 **2026-02-28**

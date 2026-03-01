@@ -69,7 +69,7 @@ export const test = base.extend<
 
     // Open a target page with a simple test form
     const targetPage = await context.newPage();
-    await targetPage.goto('https://example.com');
+    await targetPage.goto('https://demo.playwright.dev/todomvc/');
     await targetPage.waitForLoadState('domcontentloaded');
 
     // Bring target page to front so it's the "active tab" for chrome.tabs.query

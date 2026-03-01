@@ -7,6 +7,11 @@
 
 import { test, expect } from './fixtures.js';
 
+// ─── Test URLs ──────────────────────────────────────────────────────────────
+// Use Playwright-hosted sites to avoid Cloudflare bot protection in CI.
+const TEST_URL = 'https://demo.playwright.dev/todomvc/';
+const SECOND_URL = 'https://playwright.dev/';
+
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
 /**
@@ -33,58 +38,58 @@ function findRef(snapshotText: string, labelPattern: string): string {
 // ─── Navigation ─────────────────────────────────────────────────────────────
 
 test('goto navigates to a URL', async ({ run }) => {
-  const result = await run('goto https://example.com');
+  const result = await run(`goto ${TEST_URL}`);
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('Page URL: https://example.com');
+  expect(result.text).toContain(TEST_URL);
 });
 
 test('goto with alias g', async ({ run }) => {
-  const result = await run('g https://example.com');
+  const result = await run(`g ${TEST_URL}`);
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('Page URL: https://example.com');
+  expect(result.text).toContain(TEST_URL);
 });
 
 test('go-back navigates to previous page', async ({ run }) => {
-  await run('goto https://example.com');
-  await run('goto https://www.iana.org');
+  await run(`goto ${TEST_URL}`);
+  await run(`goto ${SECOND_URL}`);
   const result = await run('go-back');
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('Page URL: https://example.com');
+  expect(result.text).toContain(TEST_URL);
 });
 
 test('go-forward navigates to next page', async ({ run }) => {
-  await run('goto https://example.com');
-  await run('goto https://www.iana.org');
+  await run(`goto ${TEST_URL}`);
+  await run(`goto ${SECOND_URL}`);
   await run('go-back');
   const result = await run('go-forward');
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('Page URL: https://www.iana.org');
+  expect(result.text).toContain(SECOND_URL);
 });
 
 // ─── Snapshot ───────────────────────────────────────────────────────────────
 
 test('snapshot returns accessibility tree with refs', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('snapshot');
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('Example Domain');
+  expect(result.text).toContain('todos');
   expect(result.text).toMatch(/\[ref=e\d+\]/);
 });
 
 test('snapshot with alias s', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('s');
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('Example Domain');
+  expect(result.text).toContain('todos');
   expect(result.text).toMatch(/\[ref=e\d+\]/);
 });
 
 // ─── Click ──────────────────────────────────────────────────────────────────
 
 test('click an element by ref', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const snap = await run('snapshot');
-  const ref = findRef(snap.text, 'Learn more');
+  const ref = findRef(snap.text, 'TodoMVC');
   const result = await run(`click ${ref}`);
   expect(result.isError).toBeFalsy();
   expect(result.text).toContain('Page URL');
@@ -101,7 +106,7 @@ test('fill an input field', async ({ run }) => {
 // ─── Press ──────────────────────────────────────────────────────────────────
 
 test('press a keyboard key', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('press Tab');
   expect(result.isError).toBeFalsy();
 });
@@ -119,16 +124,16 @@ test('select a dropdown option', async ({ run }) => {
 // ─── Eval ───────────────────────────────────────────────────────────────────
 
 test('eval executes JavaScript', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('eval document.title');
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('Example Domain');
+  expect(result.text).toContain('TodoMVC');
 });
 
 // ─── Screenshot ─────────────────────────────────────────────────────────────
 
 test('screenshot captures the page', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('screenshot');
   expect(result.isError).toBeFalsy();
   expect(result.text).toContain('.png');
@@ -157,74 +162,74 @@ test('uncheck a todo item', async ({ run }) => {
 // ─── Hover ──────────────────────────────────────────────────────────────────
 
 test('hover over an element', async ({ run }) => {
-  await run('goto https://example.com');
-  const result = await run('hover "Example Domain"');
+  await run(`goto ${TEST_URL}`);
+  const result = await run('hover "todos"');
   expect(result.isError).toBeFalsy();
 });
 
 // ─── Run-code ───────────────────────────────────────────────────────────────
 
 test('run-code simple expression returns result', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('run-code page.title()');
   expect(result.isError).toBeFalsy();
   expect(result.text).toContain('### Result');
-  expect(result.text).toContain('Example Domain');
+  expect(result.text).toContain('TodoMVC');
   expect(result.text).toContain('return await page.title()');
 });
 
 test('run-code multi-statement with semicolons', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('run-code const t = await page.title(); return t');
   expect(result.isError).toBeFalsy();
   expect(result.text).toContain('### Result');
-  expect(result.text).toContain('Example Domain');
+  expect(result.text).toContain('TodoMVC');
   expect(result.text).toContain('const t = await page.title(); return t');
 });
 
 test('run-code with await statement', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('run-code await page.waitForTimeout(100)');
   expect(result.isError).toBeFalsy();
   expect(result.text).toContain('await page.waitForTimeout(100)');
 });
 
 test('run-code with async function passes through unchanged', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('run-code async (page) => { const t = await page.title(); return t }');
   expect(result.isError).toBeFalsy();
   expect(result.text).toContain('### Result');
-  expect(result.text).toContain('Example Domain');
+  expect(result.text).toContain('TodoMVC');
   expect(result.text).toContain('const t = await page.title(); return t');
 });
 
 // ─── Verify commands ────────────────────────────────────────────────────────
 
 test('verify-text passes when text exists', async ({ run }) => {
-  await run('goto https://example.com');
-  const result = await run('verify-text "Example Domain"');
+  await run(`goto ${TEST_URL}`);
+  const result = await run('verify-text "todos"');
   expect(result.isError).toBeFalsy();
 });
 
 test('verify-text fails when text is missing', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('verify-text "nonexistent text xyz"');
   expect(result.isError).toBe(true);
   expect(result.text).toContain('Text not found');
 });
 
 test('verify-element passes when element exists', async ({ run }) => {
-  await run('goto https://example.com');
-  const result = await run('verify-element heading "Example Domain"');
+  await run(`goto ${TEST_URL}`);
+  const result = await run('verify-element heading "todos"');
   expect(result.isError).toBeFalsy();
 });
 
 // ─── Aliases ────────────────────────────────────────────────────────────────
 
 test('alias c for click', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const snap = await run('s');
-  const ref = findRef(snap.text, 'Learn more');
+  const ref = findRef(snap.text, 'TodoMVC');
   const result = await run(`c ${ref}`);
   expect(result.isError).toBeFalsy();
 });
@@ -240,15 +245,15 @@ function countTabs(tabListText: string): number {
 }
 
 test('tab-list shows open tabs', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('tab-list');
   expect(result.isError).toBeFalsy();
-  expect(result.text).toContain('example.com');
+  expect(result.text).toContain('demo.playwright.dev');
   expect(result.text).toMatch(/- 0:.*\(current\)/);
 });
 
 test('tab-new opens a new tab', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const before = await run('tab-list');
   const tabsBefore = countTabs(before.text);
 
@@ -263,7 +268,7 @@ test('tab-new opens a new tab', async ({ run }) => {
 });
 
 test('tab-select switches to a tab by index', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   await run('tab-new');
   // New tab is current — switch back to first tab
   const result = await run('tab-select 0');
@@ -271,11 +276,11 @@ test('tab-select switches to a tab by index', async ({ run }) => {
 
   // Verify first tab is now current
   const list = await run('tab-list');
-  expect(list.text).toMatch(/- 0:.*\(current\).*example\.com/);
+  expect(list.text).toMatch(/- 0:.*\(current\).*demo\.playwright\.dev/);
 });
 
 test('tab-close closes the current tab', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   await run('tab-new');
   const before = await run('tab-list');
   const tabsBefore = countTabs(before.text);
@@ -290,21 +295,21 @@ test('tab-close closes the current tab', async ({ run }) => {
 });
 
 test('tab-new then goto navigates in the new tab', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   await run('tab-new');
-  await run('goto https://www.iana.org');
+  await run(`goto ${SECOND_URL}`);
 
   const list = await run('tab-list');
-  expect(list.text).toContain('example.com');
-  expect(list.text).toContain('iana.org');
+  expect(list.text).toContain('demo.playwright.dev');
+  expect(list.text).toContain('playwright.dev');
 });
 
 test('tab aliases tl, tn, tc, ts work', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
 
   const list = await run('tl');
   expect(list.isError).toBeFalsy();
-  expect(list.text).toContain('example.com');
+  expect(list.text).toContain('demo.playwright.dev');
 
   const newTab = await run('tn');
   expect(newTab.isError).toBeFalsy();
@@ -326,7 +331,7 @@ test('unknown command returns error', async ({ run }) => {
 });
 
 test('invalid ref returns error', async ({ run }) => {
-  await run('goto https://example.com');
+  await run(`goto ${TEST_URL}`);
   const result = await run('click e9999');
   expect(result.isError).toBe(true);
 });

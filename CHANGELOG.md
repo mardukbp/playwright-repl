@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.7.4 — CLI .clear and .history Commands
+
+**2026-03-01**
+
+### Features
+
+- **`.clear` command**: Clears terminal output in the CLI REPL (closes [#15](https://github.com/stevez/playwright-repl/issues/15))
+- **`.history` command**: Shows commands entered in the current session
+- **`.history clear` command**: Clears the current session history
+- **Ghost text for new commands**: `.clear`, `.history`, and `.history clear` now appear in autocomplete suggestions
+- **Multi-word ghost text**: Ghost text now supports commands with spaces (e.g., typing `.history ` suggests `clear`)
+
 ## v0.7.3 — Unified Verify Command
 
 **2026-03-01**

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs';
 import { SessionManager } from '../src/recorder.js';
 import {
   processLine,
@@ -28,6 +29,7 @@ function makeCtx(overrides = {}) {
     opts: {},
     log: vi.fn(),
     historyFile: '/tmp/test-history',
+    sessionHistory: [],
     commandCount: 0,
     errors: 0,
     ...overrides,
@@ -255,6 +257,38 @@ describe('processLine', () => {
     ctx.conn.start = vi.fn().mockRejectedValue(new Error('launch failed'));
     await processLine(ctx, '.reconnect');
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('.clear clears the terminal', async () => {
+    const clearSpy = vi.spyOn(console, 'clear').mockImplementation(() => {});
+    const ctx = makeCtx();
+    await processLine(ctx, '.clear');
+    expect(clearSpy).toHaveBeenCalled();
+    expect(ctx.rl!.prompt).toHaveBeenCalled();
+    clearSpy.mockRestore();
+  });
+
+  it('.history prints session command history', async () => {
+    const ctx = makeCtx();
+    ctx.sessionHistory.push('goto https://example.com', 'click e5');
+    await processLine(ctx, '.history');
+    const output = logSpy.mock.calls.map(c => c.join(' ')).join('\n');
+    expect(output).toContain('goto https://example.com');
+    expect(output).toContain('click e5');
+  });
+
+  it('.history prints message when empty', async () => {
+    const ctx = makeCtx();
+    await processLine(ctx, '.history');
+    const output = logSpy.mock.calls.map(c => c.join(' ')).join('\n');
+    expect(output).toContain('(no history)');
+  });
+
+  it('.history clear clears session history', async () => {
+    const ctx = makeCtx();
+    ctx.sessionHistory.push('click e5', 'goto https://example.com');
+    await processLine(ctx, '.history clear');
+    expect(ctx.sessionHistory).toHaveLength(0);
   });
 
   it('sends regular command to daemon and increments count', async () => {

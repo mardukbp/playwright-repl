@@ -23,7 +23,7 @@
 
 ## Low Priority
 
-- [ ] **`highlight` command** — `highlight <locator>` as shortcut for `page.locator(<locator>).highlight()`. Useful for visualizing non-unique locator matches. Depends on editor implementation. ([#14](https://github.com/stevez/playwright-repl/issues/14))
+- [x] **`highlight` command** — `highlight <locator>` as shortcut for `page.locator(<locator>).highlight()`. Useful for visualizing non-unique locator matches. ([#14](https://github.com/stevez/playwright-repl/issues/14))
 - [ ] **Improve README structure** — Consider splitting README into per-package docs (`packages/cli/README.md`, `packages/extension/README.md`) with a concise root README linking to both.
 - [x] **Convert to TypeScript** — All packages migrated to TypeScript.
 - [x] **Extension server (Phase 8)** — `playwright-repl --extension` starts HTTP server; extension connects as thin CDP relay.

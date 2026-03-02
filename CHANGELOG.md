@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7.7 — Toolbar Icons
+
+**2026-03-01**
+
+### Improvements
+
+- **Toolbar icons**: Replaced text labels (Open, Save, Record/Stop, Export) with SVG icons for a cleaner, more compact toolbar
+- Added `FolderOpenIcon`, `SaveIcon`, `RecordIcon`, `StopIcon`, `ExportIcon` components
+- Adjusted button padding and centering for icon-only buttons
+
 ## v0.7.6 — Chaining Selectors with >>
 
 **2026-03-01**

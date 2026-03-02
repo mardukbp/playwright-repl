@@ -33,6 +33,7 @@ export const ALIASES: Record<string, string> = {
   'unchk':'uncheck',
 
   // Inspection
+  'hl':   'highlight',
   's':    'snapshot',
   'snap': 'snapshot',
   'ss':   'screenshot',

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.7.5 — Highlight Command
+
+**2026-03-01**
+
+### Features
+
+- **`highlight` command**: Visualize which elements a locator matches with `highlight <locator>` (closes [#14](https://github.com/stevez/playwright-repl/issues/14))
+  - CSS selectors: `highlight .btn` → `page.locator(".btn").highlight()`
+  - Text matching: `highlight Submit` → `page.getByText("Submit").highlight()`
+  - Auto-detects selector vs text based on CSS-like characters (`.#[]>:=`)
+- **`hl` alias**: Short alias for `highlight` (e.g., `hl .btn`)
+- **Autocomplete**: `highlight` appears in ghost text suggestions
+
 ## v0.7.4 — CLI .clear and .history Commands
 
 **2026-03-01**

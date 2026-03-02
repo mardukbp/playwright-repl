@@ -313,6 +313,12 @@ describe('processLine', () => {
     expect(output).toContain('Unknown command');
   });
 
+  it('passes highlight command through to engine', async () => {
+    const ctx = makeCtx();
+    await processLine(ctx, 'highlight .btn');
+    expect(ctx.conn.run).toHaveBeenCalledWith(expect.objectContaining({ _: ['highlight', '.btn'] }));
+  });
+
   it('auto-resolves text to run-code for click', async () => {
     const ctx = makeCtx();
     await processLine(ctx, 'click "Submit"');

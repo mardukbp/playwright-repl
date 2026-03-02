@@ -261,7 +261,7 @@ export async function processLine(ctx: ReplContext, line: string): Promise<void>
   if (!cmdName) return;
 
   // Validate command exists
-  const knownExtras = ['help', 'list', 'close-all', 'kill-all', 'install', 'install-browser',
+  const knownExtras = ['help', 'highlight', 'list', 'close-all', 'kill-all', 'install', 'install-browser',
                        'verify', 'verify-text', 'verify-element', 'verify-value', 'verify-list',
                        'verify-title', 'verify-url', 'verify-no-text', 'verify-no-element'];
   if (!ALL_COMMANDS.includes(cmdName) && !knownExtras.includes(cmdName)) {

@@ -40,6 +40,12 @@ function createMockDeps() {
       args: { shape: { ref: true } },
     },
     close: { name: 'close', toolName: '', toolParams: () => ({}) },
+    'run-code': {
+      name: 'run-code',
+      toolName: 'browser_run_code',
+      toolParams: ({ code }) => ({ code }),
+      args: { shape: { code: true } },
+    },
   };
 
   return {
@@ -218,6 +224,48 @@ describe('Engine', () => {
       const result = await engine.run({ _: ['snapshot'] });
       expect(result.isError).toBe(true);
       expect(result.text).toContain('Error');
+    });
+  });
+
+  // ─── highlight ────────────────────────────────────────────────────────
+
+  describe('highlight', () => {
+    beforeEach(async () => {
+      await engine.start({});
+      mocks.callTool.mockResolvedValue({
+        content: [{ type: 'text', text: 'Highlighted' }],
+        isError: false,
+      });
+    });
+
+    it('uses page.locator() for CSS selectors', async () => {
+      await engine.run({ _: ['highlight', '.btn'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.locator(".btn").highlight()') }),
+      );
+    });
+
+    it('uses page.getByText() for plain text', async () => {
+      await engine.run({ _: ['highlight', 'Submit'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.getByText("Submit").highlight()') }),
+      );
+    });
+
+    it('joins multi-word text args and uses getByText', async () => {
+      await engine.run({ _: ['highlight', 'Submit', 'Button'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.getByText("Submit Button").highlight()') }),
+      );
+    });
+
+    it('returns error when no locator provided', async () => {
+      const result = await engine.run({ _: ['highlight'] });
+      expect(result.isError).toBe(true);
+      expect(result.text).toContain('Usage');
     });
   });
 

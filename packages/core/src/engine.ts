@@ -242,6 +242,17 @@ export class Engine {
     if (!this._backend)
       throw new Error('Engine not started');
 
+    // ── highlight → run-code translation ──
+    if (args._[0] === 'highlight') {
+      const loc = args._.slice(1).join(' ');
+      if (!loc) return { text: 'Usage: highlight <locator>', isError: true };
+      const isSelector = /[.#\[\]>:=]/.test(loc);
+      const locExpr = isSelector
+        ? `page.locator(${JSON.stringify(loc)})`
+        : `page.getByText(${JSON.stringify(loc)})`;
+      args = { _: ['run-code', `async (page) => { await ${locExpr}.highlight(); return "Highlighted"; }`] };
+    }
+
     const deps = this._deps || loadDeps();
     const command = deps.commands[args._[0]];
     if (!command)

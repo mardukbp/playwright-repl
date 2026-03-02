@@ -59,7 +59,7 @@ function CommandInput({ onSubmit }: CommandInputProps) {
     }
     return (
         <div id="input-bar" className="flex items-center border-t border-solid border-(--border-primary) py-[6px] px-3 bg-(--bg-toolbar) gap-2 shrink-0">
-            <span id="prompt" className="text-(--color-prompt) font-bold shrink-0">pw&gt;</span>
+            <span id="prompt" data-testid="prompt" className="text-(--color-prompt) font-bold shrink-0">pw&gt;</span>
             <div id="input-wrapper" className="flex-1 relative">
                 {matches.length > 0 && (
                     <div id="autocomplete-dropdown" className="absolute bottom-full left-0 bg-(--bg-toolbar) border border-solid border-(--border-primary) rounded-[4px] py-1 px-0 mb-1 max-h-50 overflow-y-auto z-50 shadow-[0_-2px_8px_rgba(0,0,0,0.15)] " data-testid="autocomplete-dropdown">

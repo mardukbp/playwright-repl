@@ -205,13 +205,14 @@ function Toolbar({ editorContent, fileName, stepLine, dispatch }: ToolbarProps) 
                 <span className="w-[1px] h-[18px] bg-(--color-toolbar-sep) mx-1"></span>
                 <button
                     id="record-btn"
+                    data-testid="record-btn"
                     className={isRecording ? 'recording' : ''}
                     title={isRecording ? "Stop recording" : "Start Recording"}
                     onClick={handleRecord}
                 >
                     {isRecording ? <StopIcon /> : <RecordIcon />}
                 </button>
-                <button id="run-btn" title="Run script (Ctrl+Enter)" disabled={!editorContent.trim() || !isConnected} onClick={handleRun}>&#9654;</button>
+                <button id="run-btn" data-testid="run-btn" title="Run script (Ctrl+Enter)" disabled={!editorContent.trim() || !isConnected} onClick={handleRun}>&#9654;</button>
                 <button id="step-btn" title="Step: run next line" disabled={!editorContent.trim() || !isConnected} onClick={handleStep}>&#9655;</button>
                 <button id="export-btn" title="Export as Playwright test" disabled={!editorContent.trim()} onClick={handleExport}><ExportIcon /></button>
                 <button onClick={() => setIsDarkMode(prev => !prev)} title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}>

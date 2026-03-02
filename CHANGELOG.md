@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.7.6 — Chaining Selectors with >>
+
+**2026-03-01**
+
+### Features
+
+- **`>>` chaining**: Use Playwright's chained selector syntax with any interaction command (closes [#16](https://github.com/stevez/playwright-repl/issues/16))
+  - `click ".nav >> button"` → `page.locator(".nav >> button").click()`
+  - `fill ".form >> input" "hello"` → `page.locator(".form >> input").fill("hello")`
+  - Works with: click, dblclick, hover, check, uncheck, fill, select
+  - Supports both quoted (`click ".nav >> button"`) and unquoted (`click .nav >> button`) syntax
+
 ## v0.7.5 — Highlight Command
 
 **2026-03-01**

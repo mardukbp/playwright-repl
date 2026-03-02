@@ -10,7 +10,7 @@
 
 ## Medium Priority
 - [x] **CLI `clear` command** — Add `clear` to the CLI REPL to clear terminal output, matching the extension behavior. ([#15](https://github.com/stevez/playwright-repl/issues/15))
-- [ ] **Chaining selectors with `>>`** — When args contain `>>`, use `page.locator(<chained>)` instead of ref-based lookup. Similar to `run-code` logic. ([#16](https://github.com/stevez/playwright-repl/issues/16))
+- [x] **Chaining selectors with `>>`** — When args contain `>>`, use `page.locator(<chained>)` instead of ref-based lookup. ([#16](https://github.com/stevez/playwright-repl/issues/16))
 - [ ] **Upgrade editor to CodeMirror 6** — Replace plain `<textarea>` in `EditorPane.tsx` with CodeMirror 6 (~30KB gzipped). Gains: syntax highlighting, proper selections, undo/redo, search. Potential custom `.pw` syntax mode later.
 - [ ] **Toolbar icons** — Replace text buttons (Open, Save, Export) with SVG icons in `Toolbar.tsx`, similar to existing sun/moon toggle in `Icons.tsx`.
 - [ ] **Editor context menu** — Right-click menu in the editor with: Run line, Copy, Export to TypeScript, Copy to clipboard.

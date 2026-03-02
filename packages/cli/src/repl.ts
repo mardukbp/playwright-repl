@@ -341,7 +341,7 @@ export async function processLine(ctx: ReplContext, line: string): Promise<void>
     click: actionByText as PageScriptFn, dblclick: actionByText as PageScriptFn, hover: actionByText as PageScriptFn,
     fill: fillByText as PageScriptFn, select: selectByText as PageScriptFn, check: checkByText as PageScriptFn, uncheck: uncheckByText as PageScriptFn,
   };
-  if (textFns[cmdName] && args._[1] && !/^e\d+$/.test(args._[1])) {
+  if (textFns[cmdName] && args._[1] && !/^e\d+$/.test(args._[1]) && !args._.some(a => a.includes('>>'))) {
     const textArg = args._[1];
     const extraArgs = args._.slice(2);
     const fn = textFns[cmdName];

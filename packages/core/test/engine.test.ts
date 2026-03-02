@@ -269,6 +269,74 @@ describe('Engine', () => {
     });
   });
 
+  // ─── >> chaining ────────────────────────────────────────────────────────
+
+  describe('>> chaining', () => {
+    beforeEach(async () => {
+      await engine.start({});
+      mocks.callTool.mockResolvedValue({
+        content: [{ type: 'text', text: 'Done' }],
+        isError: false,
+      });
+    });
+
+    it('translates click with quoted >> selector', async () => {
+      await engine.run({ _: ['click', '.nav >> button'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.locator(".nav >> button").click()') }),
+      );
+    });
+
+    it('translates click with unquoted >> selector', async () => {
+      await engine.run({ _: ['click', '.nav', '>>', 'button'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.locator(".nav >> button").click()') }),
+      );
+    });
+
+    it('translates hover with >> selector', async () => {
+      await engine.run({ _: ['hover', '.menu', '>>', '.item'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.locator(".menu >> .item").hover()') }),
+      );
+    });
+
+    it('translates fill with quoted >> selector and value', async () => {
+      await engine.run({ _: ['fill', '.form >> input', 'hello'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.locator(".form >> input").fill("hello")') }),
+      );
+    });
+
+    it('translates fill with unquoted >> selector and value', async () => {
+      await engine.run({ _: ['fill', '.form', '>>', 'input', 'hello'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.locator(".form >> input").fill("hello")') }),
+      );
+    });
+
+    it('translates select with >> selector and value', async () => {
+      await engine.run({ _: ['select', '.form >> select', 'opt'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_run_code',
+        expect.objectContaining({ code: expect.stringContaining('page.locator(".form >> select").selectOption("opt")') }),
+      );
+    });
+
+    it('does not trigger for commands without >>', async () => {
+      await engine.run({ _: ['click', 'e5'] });
+      expect(mocks.callTool).toHaveBeenCalledWith(
+        'browser_click',
+        expect.objectContaining({ ref: 'e5' }),
+      );
+    });
+  });
+
   // ─── close ──────────────────────────────────────────────────────────────
 
   describe('close', () => {

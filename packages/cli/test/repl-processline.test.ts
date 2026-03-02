@@ -319,6 +319,14 @@ describe('processLine', () => {
     expect(ctx.conn.run).toHaveBeenCalledWith(expect.objectContaining({ _: ['highlight', '.btn'] }));
   });
 
+  it('passes >> chained selector through to engine', async () => {
+    const ctx = makeCtx();
+    await processLine(ctx, 'click ".nav >> button"');
+    const call = ctx.conn.run.mock.calls[0][0];
+    expect(call._[0]).toBe('click');
+    expect(call._[1]).toBe('.nav >> button');
+  });
+
   it('auto-resolves text to run-code for click', async () => {
     const ctx = makeCtx();
     await processLine(ctx, 'click "Submit"');

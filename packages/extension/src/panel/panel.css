@@ -156,19 +156,6 @@ html, body {
   border-color: var(--color-recording-border) !important;
 }
 
-/* === Editor pane === */
-
-#line-numbers .line-pass::before {
-  content: "\2713";
-  margin-right: 2px;
-  font-size: 10px;
-}
-
-#line-numbers .line-fail::before {
-  content: "\2717";
-  margin-right: 2px;
-  font-size: 10px;
-}
 
 /* === Splitter === */
 
@@ -182,22 +169,22 @@ html, body {
 
 /* Scrollbar styling */
 #output::-webkit-scrollbar,
-#editor::-webkit-scrollbar {
+.cm-scroller::-webkit-scrollbar {
   width: 8px;
 }
 
 #output::-webkit-scrollbar-track,
-#editor::-webkit-scrollbar-track {
+.cm-scroller::-webkit-scrollbar-track {
   background: var(--bg-scrollbar-track);
 }
 
 #output::-webkit-scrollbar-thumb,
-#editor::-webkit-scrollbar-thumb {
+.cm-scroller::-webkit-scrollbar-thumb {
   background: var(--bg-scrollbar-thumb);
   border-radius: 4px;
 }
 
 #output::-webkit-scrollbar-thumb:hover,
-#editor::-webkit-scrollbar-thumb:hover {
+.cm-scroller::-webkit-scrollbar-thumb:hover {
   background: var(--bg-scrollbar-thumb-hover);
 }

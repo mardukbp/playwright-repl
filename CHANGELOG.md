@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.7.8 — CodeMirror 6 Editor
+
+**2026-03-02**
+
+### Features
+
+- **CodeMirror 6 editor**: Replaced plain `<textarea>` with CodeMirror 6 for a proper code editing experience
+  - Built-in undo/redo (Ctrl+Z / Ctrl+Y)
+  - Search & replace (Ctrl+F)
+  - Line numbers via CM6 gutter
+  - Active line highlighting
+  - Bracket matching
+  - Pass/fail gutter markers (✓/✗) for run results
+  - Current run line highlighting
+  - Placeholder text when empty
+
+### Improvements
+
+- **E2E test selectors**: Replaced brittle CSS ID selectors with `getByTestId` and `getByRole` locators
+- Added `data-testid` attributes to editor pane, output, prompt, run button, and record button
+
 ## v0.7.7 — Toolbar Icons
 
 **2026-03-01**

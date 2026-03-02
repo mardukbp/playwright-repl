@@ -113,10 +113,13 @@ html, body {
   color: var(--text-default);
   border: 1px solid var(--border-button);
   border-radius: 4px;
-  padding: 4px 10px;
+  padding: 4px 6px;
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #toolbar button:hover {

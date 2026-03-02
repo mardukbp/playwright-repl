@@ -185,9 +185,8 @@ test('record button toggles to Stop when recording starts', async ({ panelPage }
 
   // Click to start recording
   await btn.click();
-  await expect(btn).toContainText('Stop');
-  const hasRecording = await btn.evaluate(el => el.classList.contains('recording'));
-  expect(hasRecording).toBe(true);
+  await expect(btn).toHaveAttribute('title', 'Stop recording');
+  await expect(btn).toHaveClass(/recording/);
 });
 
 test('record button toggles back to Record when stopped', async ({ panelPage }) => {
@@ -204,9 +203,9 @@ test('record button toggles back to Record when stopped', async ({ panelPage }) 
 
   // Start then stop
   await btn.click();
-  await expect(btn).toContainText('Stop');
+  await expect(btn).toHaveAttribute('title', 'Stop recording');
   await btn.click();
-  await expect(btn).toContainText('Record');
+  await expect(btn).toHaveAttribute('title', 'Start Recording');
   const hasRecording = await btn.evaluate(el => el.classList.contains('recording'));
   expect(hasRecording).toBe(false);
 });

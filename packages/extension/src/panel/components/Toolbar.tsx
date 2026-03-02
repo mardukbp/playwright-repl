@@ -5,7 +5,7 @@ import { exportToPlaywright } from '@/lib/converter';
 import { checkHealth, setServerPort } from '@/lib/server';
 import { runAndDispatch } from '@/lib/run';
 import { getServerPort } from '@/lib/server';
-import { SunIcon, MoonIcon } from './Icons';
+import { SunIcon, MoonIcon, FolderOpenIcon, SaveIcon, RecordIcon, StopIcon, ExportIcon } from './Icons';
 
 interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'fileName' | 'stepLine'> {
     dispatch: React.Dispatch<Action>
@@ -200,8 +200,8 @@ function Toolbar({ editorContent, fileName, stepLine, dispatch }: ToolbarProps) 
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
                 />
-                <button id="open-btn" title="Open .pw file" onClick={handleFileOpen}>Open</button>
-                <button id="save-btn" title="Save as .pw file" disabled={!editorContent.trim()} onClick={handleSave}>Save</button>
+                <button id="open-btn" title="Open .pw file" onClick={handleFileOpen}><FolderOpenIcon /></button>
+                <button id="save-btn" title="Save as .pw file" disabled={!editorContent.trim()} onClick={handleSave}><SaveIcon /></button>
                 <span className="w-[1px] h-[18px] bg-(--color-toolbar-sep) mx-1"></span>
                 <button
                     id="record-btn"
@@ -209,11 +209,11 @@ function Toolbar({ editorContent, fileName, stepLine, dispatch }: ToolbarProps) 
                     title={isRecording ? "Stop recording" : "Start Recording"}
                     onClick={handleRecord}
                 >
-                    {isRecording ? '⏹ Stop' : '⏺ Record'}
+                    {isRecording ? <StopIcon /> : <RecordIcon />}
                 </button>
                 <button id="run-btn" title="Run script (Ctrl+Enter)" disabled={!editorContent.trim() || !isConnected} onClick={handleRun}>&#9654;</button>
                 <button id="step-btn" title="Step: run next line" disabled={!editorContent.trim() || !isConnected} onClick={handleStep}>&#9655;</button>
-                <button id="export-btn" title="Export as Playwright test" disabled={!editorContent.trim()} onClick={handleExport}>Export</button>
+                <button id="export-btn" title="Export as Playwright test" disabled={!editorContent.trim()} onClick={handleExport}><ExportIcon /></button>
                 <button onClick={() => setIsDarkMode(prev => !prev)} title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}>
                     {isDarkMode ? <SunIcon /> : <MoonIcon />}
                 </button>

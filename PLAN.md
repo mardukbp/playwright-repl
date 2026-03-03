@@ -1,171 +1,155 @@
-# CodeMirror 6 Migration — Phase 1: Replace EditorPane textarea
+# CodeMirror 6 — Phase 2: `.pw` Syntax Highlighting
 
 ## Context
 
-The extension uses a plain `<textarea>` for the editor pane. Replace it with CodeMirror 6 for built-in undo/redo, search (Ctrl+F), proper selections, and a foundation for syntax highlighting (Phase 2). No React wrapper — vanilla CM6 with `useRef`/`useEffect`.
+Phase 1 (v0.7.8) replaced the editor textarea with CodeMirror 6. The editor currently renders all text in the default color. Phase 2 adds a custom `.pw` language mode so commands, comments, strings, and flags are color-coded — matching the VS Code token color scheme.
 
-## Phases Overview
+## Token Types & Colors
 
-| Phase | Scope | PR |
-|-------|-------|----|
-| **1 (this PR)** | Replace textarea with CM6, preserve behavior | Current |
-| 2 | Custom `.pw` syntax highlighting | Future |
-| 3 | Replace CommandInput with CM6 single-line | Future |
-| 4 | JS highlighting for export/run-code | Future |
+| Token | Example | Light | Dark |
+|---|---|---|---|
+| **Command** | `click`, `fill`, `goto` | `--color-command` (#0451a5) | (#569cd6) |
+| **Comment** | `# this is a comment` | `--color-comment` (#6a9955) | (#6a9955) |
+| **String** | `"Buy groceries"` | new `--color-string` (#a31515) | (#ce9178) |
+| **Flag** | `--submit`, `--nth` | new `--color-flag` (#795e26) | (#dcdcaa) |
+| **URL** | `https://example.com` | new `--color-url` (#0070c1) | (#9cdcfe) |
+
+Everything else (args, numbers, refs) stays `--text-default`.
 
 ---
 
-## Step-by-step Tasks
+## Step-by-step
 
-### Step 1: Install CodeMirror 6 dependencies
+### Step 1: Add CSS variables for new token types
+
+**File**: `packages/extension/src/panel/panel.css`
+
+Add 3 new variables to both `:root` and `.theme-dark`:
+
+```css
+/* In :root (light), after --color-comment line */
+--color-string: #a31515;
+--color-flag: #795e26;
+--color-url: #0070c1;
+
+/* In .theme-dark, after --color-comment line */
+--color-string: #ce9178;
+--color-flag: #dcdcaa;
+--color-url: #9cdcfe;
+```
+
+### Step 2: Create the `.pw` language definition
+
+**New file**: `packages/extension/src/panel/lib/pw-language.ts`
+
+Use CM6's `StreamLanguage` — simplest approach for line-based syntax (no multi-line constructs).
+
+**Command set**: Build a `Set<string>` containing all command names from `resolve.ts` COMMANDS map + extra commands from `completion-data.ts` + common aliases from `parser.ts`. Full list:
+
+```
+// Commands (resolve.ts)
+open, close, goto, go-back, go-forward, reload, click, dblclick, fill, type, press,
+hover, select, check, uncheck, upload, drag, snapshot, screenshot, eval, console,
+network, run-code, tab-list, tab-new, tab-close, tab-select, cookie-list, cookie-get,
+cookie-set, cookie-delete, cookie-clear, localstorage-list, localstorage-get,
+localstorage-set, localstorage-delete, localstorage-clear, sessionstorage-list,
+sessionstorage-get, sessionstorage-set, sessionstorage-delete, sessionstorage-clear,
+state-save, state-load, dialog-accept, dialog-dismiss, resize, pdf, config-print,
+install-browser, list, close-all, kill-all, route, route-list, unroute
+
+// Extra commands (completion-data.ts)
+highlight, verify, verify-text, verify-element, verify-value, verify-list,
+verify-title, verify-url, verify-no-text, verify-no-element
+
+// Aliases (parser.ts)
+o, g, go, back, fwd, r, c, dc, t, f, h, p, sel, chk, unchk,
+hl, s, snap, ss, e, con, net, tl, tn, tc, ts, v, vt, ve, vv, vl, q, ls
+```
+
+**Tokenizer logic** (`token` function):
+
+1. Start of line → reset `commandSeen` flag
+2. Skip whitespace → return `null`
+3. If `!commandSeen` and `#` → consume to end of line → return `'comment'`
+4. If `!commandSeen` → match `[\w-]+` → if in COMMANDS set → return `'keyword'`, set `commandSeen = true`
+5. If `"` or `'` → consume until matching close quote (handle `\\` escapes) → return `'string'`
+6. If `--` → match `[\w-]+` → return `'attributeName'`
+7. If `https?://` → consume non-whitespace → return `'url'`
+8. Else → advance one char → return `null`
+
+**State type**: `{ commandSeen: boolean }`
+
+**Export**: `pwLanguage` (the `StreamLanguage` instance)
+
+### Step 3: Define the highlight style
+
+**Same file** (`pw-language.ts`)
+
+```ts
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
+
+const pwHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword,       color: 'var(--color-command)' },
+  { tag: tags.comment,       color: 'var(--color-comment)', fontStyle: 'italic' },
+  { tag: tags.string,        color: 'var(--color-string)' },
+  { tag: tags.attributeName, color: 'var(--color-flag)' },
+  { tag: tags.url,           color: 'var(--color-url)', textDecoration: 'underline' },
+]);
+
+export const pwSyntax = [
+  pwLanguage,
+  syntaxHighlighting(pwHighlightStyle),
+];
+```
+
+`@lezer/highlight` ships with `@codemirror/language` — no extra install needed.
+
+### Step 4: Add to baseExtensions
+
+**File**: `packages/extension/src/panel/lib/codemirror-setup.ts`
+
+Import and add to the extensions array:
+
+```ts
+import { pwSyntax } from './pw-language';
+
+export const baseExtensions = [
+    ...pwSyntax,                                 // ← ADD first
+    lineNumbers(),
+    // ... rest unchanged
+];
+```
+
+### Step 5: Build and verify visually
 
 ```bash
-npm install codemirror @codemirror/state @codemirror/view @codemirror/commands @codemirror/language @codemirror/search -w packages/extension
+npm run build
 ```
 
-Packages:
-- `codemirror` — meta-package (re-exports core)
-- `@codemirror/state` — editor state, transactions
-- `@codemirror/view` — EditorView, decorations, gutters
-- `@codemirror/commands` — default keybindings, undo/redo
-- `@codemirror/language` — bracket matching, indentation
-- `@codemirror/search` — Ctrl+F search panel
+Load the extension in Chrome. Type or open a `.pw` script. Check:
+- Commands are blue
+- Comments are green italic
+- Strings are red/orange
+- Flags are gold
+- URLs are teal underlined
+- Toggle dark mode — colors switch correctly
 
-### Step 2: Create shared CM6 setup (`codemirror-setup.ts`)
+### Step 6: Run tests
 
-**New file**: `packages/extension/src/panel/lib/codemirror-setup.ts`
-
-Contents:
-- **`pwTheme`** — CM6 theme mapping CSS custom properties:
-  - `&` → `--bg-editor`, `--text-default`
-  - `.cm-gutters` → `--bg-editor`, `--border-primary`
-  - `.cm-lineNumbers .cm-gutterElement` → `--text-line-numbers`
-  - `.cm-cursor` → `--color-caret`
-  - `.cm-content` → font-family matching existing monospace stack
-  - `.cm-scroller` → scrollbar styles
-- **`baseExtensions`** — array of CM6 extensions:
-  - `lineNumbers()`
-  - `highlightActiveLineGutter()`
-  - `history()` (undo/redo)
-  - `bracketMatching()`
-  - `search()` (Ctrl+F)
-  - `keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap])`
-  - `EditorView.lineWrapping` disabled (whitespace: pre)
-  - `pwTheme`
-  - `placeholder("# Type or open a .pw script...")`
-  - Tab size = 2
-
-### Step 3: Create line decoration extension
-
-**In `codemirror-setup.ts`**, add:
-
-- **`setRunLineEffect`** — `StateEffect<number>` to set current run line
-- **`setLineResultsEffect`** — `StateEffect<(string|null)[]>` to set pass/fail markers
-- **`runLineField`** — `StateField<number>` tracking current run line (-1 = none)
-- **`lineResultsField`** — `StateField<(string|null)[]>` tracking pass/fail per line
-- **`runLineHighlight`** — line decoration applying `--bg-line-highlight` background
-- **`lineResultGutter`** — gutter with ✓/✗ markers colored by pass/fail
-- Export helper: `dispatchRunState(view, runLine, lineResults)` called from React
-
-### Step 4: Rewrite `EditorPane.tsx`
-
-Replace textarea + manual line numbers with CM6 `EditorView`:
-
-```
-Before:
-┌─────────┬──────────────────┐
-│ LineNums │ <textarea>       │
-│ (manual) │ (controlled)     │
-│ div      │                  │
-└─────────┴──────────────────┘
-
-After:
-┌─────────────────────────────┐
-│ CodeMirror EditorView       │
-│ (gutters + content area)    │
-│ (manages its own state)     │
-└─────────────────────────────┘
+```bash
+npm test
+npm run build && cd packages/extension && npx playwright test
 ```
 
-**Implementation details:**
-
-1. `useRef<HTMLDivElement>` for CM6 mount point
-2. `useRef<EditorView>` to hold the view instance
-3. **Mount effect** (`[]` deps): create EditorView with baseExtensions + updateListener that dispatches `EDIT_EDITOR_CONTENT` on doc change. Cleanup: `view.destroy()`
-4. **External sync effect** (`[editorContent]` deps): when editorContent changes externally (file open, record), push full-doc replacement transaction — skip if CM6 doc already matches (avoid echo loops)
-5. **Run state effect** (`[currentRunLine, lineResults]` deps): dispatch `setRunLineEffect` and `setLineResultsEffect` into CM6 to update decorations
-6. Remove: `lineNumbersRef`, `handleEditorScroll`, manual line number rendering, `#line-highlight` overlay
-
-**Props unchanged**: `editorContent`, `currentRunLine`, `lineResults`, `dispatch`, `ref`
-
-### Step 5: Clean up `panel.css`
-
-Remove styles no longer needed:
-- `#line-numbers .line-pass::before`, `.line-fail::before` pseudo-elements (replaced by CM6 gutter markers)
-- Scrollbar styles: retarget from `#editor` to `.cm-scroller`
-
-Add CM6 overrides:
-- `.cm-editor { height: 100%; }` — fill pane
-- `.cm-scroller { overflow: auto; }` — scrollable
-- `.cm-focused { outline: none; }` — no focus ring (matches textarea behavior)
-
-### Step 6: Update E2E tests
-
-Tests that interact with `#editor` (textarea):
-
-| Current selector | New selector | Change |
-|---|---|---|
-| `#editor` (fill) | `.cm-content` (click + type) | Can't `fill()` contenteditable |
-| `#editor` (inputValue) | `.cm-content` (textContent) | Different read API |
-| `#line-numbers div` | `.cm-lineNumbers .cm-gutterElement` | CM6 gutter elements |
-
-Create test helper:
-```ts
-async function fillEditor(page: Page, text: string) {
-  const editor = page.locator('.cm-content');
-  await editor.click();
-  await page.keyboard.press('Control+A');
-  await page.keyboard.type(text);
-}
-```
-
-### Step 7: Run tests and build
-
-1. `npm test` — all unit + vitest tests pass
-2. `npm run build` — extension builds
-3. Note bundle size delta (CM6 adds ~30KB gzipped)
-4. E2E tests pass with updated selectors
-
-### Step 8: Visual verification
-
-- [ ] Editor renders with line numbers
-- [ ] Typing, undo/redo (Ctrl+Z/Y), search (Ctrl+F)
-- [ ] File open/save works
-- [ ] Run: line highlights + pass/fail markers
-- [ ] Step: indicator advances correctly
-- [ ] Recording: appended commands appear
-- [ ] Dark/light theme toggle
-- [ ] Export still works
-- [ ] Placeholder text when empty
+No test changes expected — syntax highlighting is purely visual.
 
 ---
 
-## Files to modify
+## Files summary
 
 | File | Change |
 |---|---|
-| `packages/extension/package.json` | Add 6 codemirror dependencies |
-| `packages/extension/src/panel/lib/codemirror-setup.ts` | **New** — theme, extensions, line decoration StateFields |
-| `packages/extension/src/panel/components/EditorPane.tsx` | Replace textarea with CM6 EditorView |
-| `packages/extension/src/panel/panel.css` | Remove textarea styles, add CM6 overrides |
-| `packages/extension/e2e/panel/panel.test.ts` | Update editor selectors |
-
-## Files NOT changed
-
-| File | Why |
-|---|---|
-| `reducer.ts` | State shape unchanged — editorContent stays as string |
-| `Toolbar.tsx` | Reads editorContent from reducer, not CM6 |
-| `CommandInput.tsx` | Phase 3 |
-| `ConsolePane.tsx` | No editor dependency |
-| `autocomplete.ts` | Phase 2/3 — reuse later for CM6 completion source |
+| `packages/extension/src/panel/panel.css` | Add `--color-string`, `--color-flag`, `--color-url` |
+| `packages/extension/src/panel/lib/pw-language.ts` | **New** — StreamLanguage tokenizer + HighlightStyle |
+| `packages/extension/src/panel/lib/codemirror-setup.ts` | Import `pwSyntax`, add to `baseExtensions` |

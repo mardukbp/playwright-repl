@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { OutputLine } from "@/types";
 import { Action } from "@/reducer";
-import CommandInput from './CommandInput';
 import Lightbox from '@/components/Lightbox';
 import { saveImageToFile } from '@/lib/file-utils';
-import { runAndDispatch } from '@/lib/run';
 
 interface ConsolePaneProps {
     outputLines: OutputLine[]
@@ -31,10 +29,6 @@ function ConsolePane({ outputLines, passCount, failCount, dispatch }: ConsolePan
             outputRef.current.scrollTop = outputRef.current.scrollHeight;
         }
     }, [outputLines]);
-
-    async function handleSubmit(command: string) {
-        await runAndDispatch(command, dispatch);
-    }
 
     function handleClear() {
         dispatch({ type: 'CLEAR_CONSOLE' });
@@ -101,7 +95,6 @@ function ConsolePane({ outputLines, passCount, failCount, dispatch }: ConsolePan
             <div id="output" ref={outputRef} data-testid="output" className='flex-1 overflow-y-auto py-2 px-3 whitespace-pre-wrap wrap-break-word'>
                 {outputLines.map(renderLine)}
             </div>
-            <CommandInput onSubmit={handleSubmit} />
         </div>
         { lightBoxImage && 
             <Lightbox image={lightBoxImage} onClose={()=> setLightBoxImage(undefined)} />

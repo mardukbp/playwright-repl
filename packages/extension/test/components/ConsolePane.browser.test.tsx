@@ -4,8 +4,10 @@ import { userEvent } from 'vitest/browser';
 import { useReducer } from 'react';
 
 import ConsolePane from '@/components/ConsolePane';
+import CommandInput from '@/components/CommandInput';
 import type { OutputLine } from '@/types'
 import { panelReducer, initialState, PanelState } from '@/reducer';
+import { runAndDispatch } from '@/lib/run';
 
 vi.mock('@/lib/server', () => ({
   executeCommand: vi.fn(),
@@ -34,7 +36,15 @@ describe("ConsolePane component tests", () => {
 
   function TestWrapper({ initState = initialState }: { initState?: PanelState } = {}) {
     const [state, dispatch] = useReducer(panelReducer, initState)
-    return <ConsolePane outputLines={state.outputLines} dispatch={dispatch} passCount={state.passCount} failCount={state.failCount} />;
+    async function handleSubmit(command: string) {
+      await runAndDispatch(command, dispatch);
+    }
+    return (
+      <>
+        <ConsolePane outputLines={state.outputLines} dispatch={dispatch} passCount={state.passCount} failCount={state.failCount} />
+        <CommandInput onSubmit={handleSubmit} />
+      </>
+    );
   }
 
   beforeEach(() => {
@@ -53,7 +63,6 @@ describe("ConsolePane component tests", () => {
 
   it('should render console pane', async () => {
     const screen = await render(<ConsolePane outputLines={[]} dispatch={vi.fn()} passCount={0} failCount={0} />);
-    await expect.element(screen.getByRole('textbox')).toBeInTheDocument();
     await expect.element(screen.getByText('Terminal')).toBeInTheDocument();
   });
 
@@ -71,7 +80,7 @@ describe("ConsolePane component tests", () => {
   })
 
   it('should render prompt input', async () => {
-    const screen = await render(<ConsolePane outputLines={[]} dispatch={vi.fn()} passCount={0} failCount={0} />);
+    const screen = await render(<TestWrapper />);
     await screen.getByRole('textbox').fill('click e5');
     await expect.element(screen.getByRole('textbox')).toHaveTextContent('click e5');
   })

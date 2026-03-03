@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 export const minimist: (args: string[], opts?: Record<string, unknown>) => Record<string, unknown> & { _: string[] } = require('minimist');
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-export const replVersion: string = require('../../cli/package.json').version;
+export const replVersion: string = require('../package.json').version;
 
 // ─── Command vocabulary ──────────────────────────────────────────────────────
 

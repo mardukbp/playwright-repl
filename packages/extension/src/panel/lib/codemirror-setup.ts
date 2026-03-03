@@ -3,6 +3,7 @@ import { EditorView } from "codemirror";
 import { lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap, placeholder } from '@codemirror/view';
 import { history, historyKeymap, defaultKeymap } from '@codemirror/commands';
 import { bracketMatching } from '@codemirror/language';
+import { pwSyntax } from './pw-language';
 import { search, searchKeymap } from '@codemirror/search';
 import { StateEffect, StateField, EditorState, RangeSet } from '@codemirror/state';
 import { Decoration, GutterMarker, gutter } from '@codemirror/view';
@@ -121,6 +122,7 @@ export function dispatchRunState(
 }
 
 export const baseExtensions = [
+    ...pwSyntax,                             // .pw syntax highlighting
     lineNumbers(),                           // built-in line numbers (replaces manual div)
     highlightActiveLineGutter(),             // highlights gutter on cursor line
     highlightActiveLine(),                   // highlights content on cursor line

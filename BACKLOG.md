@@ -19,7 +19,7 @@
 - [ ] **Failed commands not recorded** — `packages/cli/src/repl.ts`: `session.record(line)` only runs after success; replay files miss failed commands
 - [ ] **History write errors silently swallowed** — `packages/cli/src/repl.ts`: `catch {}` hides disk-full or permission errors
 - [ ] **Playwright version too loose** — `packages/cli/package.json`: `>=1.59.0-alpha` accepts any future version; pin to `<1.60.0` or similar
-- [ ] **Publish CLI to npm** — Requires fixing `file:../core` dependency (bundle core into CLI or publish core separately) and waiting for Playwright 1.59 stable.
+- [x] **Publish CLI to npm** — Published `@playwright-repl/core@0.7.10` and `playwright-repl@0.7.10` to npm. Closes #37.
 
 - [ ] **Fix skipped autocomplete keyboard test** — `test/components/CommandInput.browser.test.tsx`: "should accept autocomplete item on Enter when dropdown is open" is skipped. After `waitForVisible`, subsequent `userEvent.keyboard` events don't reach CM6's autocomplete handler (CDP focus vs JS focus mismatch). Needs investigation into vitest-browser keyboard dispatch and CM6 completion state.
 

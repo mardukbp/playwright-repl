@@ -638,7 +638,7 @@ test('recorded session', async ({ page }) => {
     });
   });
 
-  it('should poll health check every 30 seconds', async () => {
+  it('should poll health check every 5 seconds', async () => {
     vi.useFakeTimers();
 
     await render(<Toolbar
@@ -653,10 +653,10 @@ test('recorded session', async ({ page }) => {
       expect(checkHealth).toHaveBeenCalledTimes(1);
     });
 
-    await vi.advanceTimersByTimeAsync(30000);
+    await vi.advanceTimersByTimeAsync(5000);
     expect(checkHealth).toHaveBeenCalledTimes(2);
 
-    await vi.advanceTimersByTimeAsync(30000);
+    await vi.advanceTimersByTimeAsync(5000);
     expect(checkHealth).toHaveBeenCalledTimes(3);
 
     vi.useRealTimers();

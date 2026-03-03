@@ -26,7 +26,7 @@ export async function executeCommand(command: string, activeTabUrl?: string): Pr
     return res.json();
 }
 
-export async function checkHealth(): Promise<{status: string, version: string}> {
+export async function checkHealth(): Promise<{status: string, version: string, browserConnected?: boolean}> {
     const res = await fetch(`${getServerUrl()}/health`);
     return res.json();
 }

@@ -91,6 +91,8 @@ export class Engine {
   private _connected = false;
   private _commandServer: { close: () => Promise<void> } | null = null;
   private _chromeProc: { kill: () => void; unref: () => void } | null = null;
+  private _isReconnecting = false;
+  private _reconnectInfo: { opts: EngineOpts; config: any; clientInfo: any } | null = null;
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
   constructor(deps?: PlaywrightDeps) {
@@ -175,43 +177,10 @@ export class Engine {
 
       // 4. Connect Playwright via CDP.
       (config as any).browser.cdpEndpoint = cdpUrl;
-      const factory = deps.contextFactory(config);
-      const { browserContext, close } = await factory.createContext(
-        clientInfo, new AbortController().signal, {},
-      );
-      this._browserContext = browserContext;
-      this._close = close;
-
-      const existingContextFactory = {
-        createContext: () => Promise.resolve({ browserContext, close }),
-      };
-      this._backend = new deps.BrowserServerBackend(config, existingContextFactory, { allTools: true });
-      await this._backend.initialize?.(clientInfo);
-      this._connected = true;
-
-      // 5. Auto-select the first visible web page.
-      const pages = browserContext.pages();
-      const INTERNAL = /^(chrome|devtools|chrome-extension|about):/;
-      let selectedIdx = -1;
-      for (let i = 0; i < pages.length; i++) {
-        const pageUrl = pages[i].url();
-        if (!pageUrl || INTERNAL.test(pageUrl)) continue;
-        try {
-          const state = await pages[i].evaluate(() => document.visibilityState);
-          if (state === 'visible' && selectedIdx === -1) {
-            selectedIdx = i;
-          }
-        } catch { /* skip */ }
-      }
-      if (selectedIdx > 0) {
-        await this._backend.callTool('browser_tabs', { action: 'select', index: selectedIdx });
-      }
+      this._reconnectInfo = { opts, config, clientInfo };
+      await this._connectToCdp(deps, config, clientInfo);
 
       console.log('Ready! Side panel can send commands.');
-
-      browserContext.on('close', () => {
-        this._connected = false;
-      });
     } else {
       // Launch/connect mode: eagerly create context for immediate feedback.
       const factory = deps.contextFactory(config);
@@ -340,6 +309,90 @@ export class Engine {
       this._chromeProc = null;
     }
   }
+
+  // ─── CDP connect / reconnect ─────────────────────────────────────────────
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  private async _connectToCdp(deps: PlaywrightDeps, config: any, clientInfo: any): Promise<void> {
+    const factory = deps.contextFactory(config);
+    const { browserContext, close } = await factory.createContext(
+      clientInfo, new AbortController().signal, {},
+    );
+    this._browserContext = browserContext;
+    this._close = close;
+
+    const existingContextFactory = {
+      createContext: () => Promise.resolve({ browserContext, close }),
+    };
+    this._backend = new deps.BrowserServerBackend(config, existingContextFactory, { allTools: true });
+    await this._backend.initialize?.(clientInfo);
+    this._connected = true;
+
+    // Auto-select the first visible web page.
+    const pages = browserContext.pages();
+    const INTERNAL = /^(chrome|devtools|chrome-extension|about):/;
+    let selectedIdx = -1;
+    for (let i = 0; i < pages.length; i++) {
+      const pageUrl = pages[i].url();
+      if (!pageUrl || INTERNAL.test(pageUrl)) continue;
+      try {
+        const state = await pages[i].evaluate(() => document.visibilityState);
+        if (state === 'visible' && selectedIdx === -1) {
+          selectedIdx = i;
+        }
+      } catch { /* skip */ }
+    }
+    if (selectedIdx > 0) {
+      await this._backend.callTool('browser_tabs', { action: 'select', index: selectedIdx });
+    }
+
+    browserContext.on('close', () => {
+      this._connected = false;
+      if (this._reconnectInfo) this._scheduleReconnect();
+    });
+  }
+
+  private _scheduleReconnect(): void {
+    if (this._isReconnecting) return;
+    this._isReconnecting = true;
+    this._doReconnect().catch(() => {});
+  }
+
+  private async _doReconnect(): Promise<void> {
+    if (!this._reconnectInfo) return;
+    const { opts, config, clientInfo } = this._reconnectInfo;
+    const deps = this._deps || loadDeps();
+    const cdpPort = (opts.cdpPort as number | undefined) || 9222;
+    const cdpUrl = `http://localhost:${cdpPort}`;
+
+    console.log('Browser context closed. Waiting for Chrome to reconnect...');
+
+    while (!this._connected) {
+      await new Promise(r => setTimeout(r, 1500));
+
+      try {
+        const res = await fetch(`${cdpUrl}/json/version`);
+        if (!res.ok) continue;
+      } catch { continue; }
+
+      // CDP is responding — reconnect
+      try {
+        // Clean up old backend before reconnecting
+        if (this._backend) { try { this._backend.serverClosed(); } catch { /* ignore */ } }
+        if (this._close) { try { await this._close(); } catch { /* ignore */ } }
+        this._backend = null;
+        this._browserContext = null;
+        this._close = null;
+
+        (config as any).browser.cdpEndpoint = cdpUrl;
+        await this._connectToCdp(deps, config, clientInfo);
+        console.log('Reconnected to Chrome CDP.');
+      } catch { /* retry next iteration */ }
+    }
+
+    this._isReconnecting = false;
+  }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   // ─── Config builder ───────────────────────────────────────────────────────
 

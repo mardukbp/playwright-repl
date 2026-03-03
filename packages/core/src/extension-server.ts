@@ -75,7 +75,7 @@ export class CommandServer {
     // Health check endpoint
     if (req.method === 'GET' && urlPath === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', version: replVersion }));
+      res.end(JSON.stringify({ status: 'ok', version: replVersion, browserConnected: this._engine.connected }));
       return;
     }
 

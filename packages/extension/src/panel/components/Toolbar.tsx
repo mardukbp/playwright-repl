@@ -156,10 +156,15 @@ function Toolbar({ editorContent, fileName, stepLine, dispatch }: ToolbarProps) 
         async function initialCheck() {
             try {
                 const result = await checkHealth();
-                setIsConnected(true);
+                const connected = result.browserConnected !== false;
+                setIsConnected(connected);
                 setServerVersion(result.version);
                 dispatch({ type: 'ADD_LINE', line: { text: `Playwright REPL v${result.version}`, type: 'info' } });
-                dispatch({ type: 'ADD_LINE', line: { text: `Connected to localhost:${port}`, type: 'success' } });
+                if (connected) {
+                    dispatch({ type: 'ADD_LINE', line: { text: `Connected to localhost:${port}`, type: 'success' } });
+                } else {
+                    dispatch({ type: 'ADD_LINE', line: { text: 'Server running but browser not connected.', type: 'error' } });
+                }
             } catch {
                 setIsConnected(false);
                 setServerVersion('');
@@ -174,14 +179,14 @@ function Toolbar({ editorContent, fileName, stepLine, dispatch }: ToolbarProps) 
         async function poll() {
             try {
                 const result = await checkHealth();
-                setIsConnected(true);
+                setIsConnected(result.browserConnected !== false);
                 setServerVersion(result.version);
             } catch {
                setIsConnected(false);
                setServerVersion('');
             }
         }
-        const timer = setInterval(poll, 30000);
+        const timer = setInterval(poll, 5000);
         return () => clearInterval(timer);
     }, [port]);
 

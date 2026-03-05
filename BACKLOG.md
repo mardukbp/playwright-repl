@@ -9,6 +9,14 @@
 - [x] **Auto-inject `expect` in `run-code`** — Implemented via sandbox iframe + `__expect__` chain protocol. `expect(page.locator(...)).toBeVisible()` and `expect(page).toHaveTitle(...)` work. `.not` negation is not yet supported (see Medium Priority).
 - [ ] **`expect().not` negation in `run-code`** — `expect(locator).not.toBeVisible()` is broken: `.not` is treated as a matcher name. Fix: detect `.not` in `createExpect()` in `sandbox.html` (return a proxy that sets a `negated` flag), pass `negated` as part of `__expect__` args, and call `expect(target).not[matcher]()` in `background.ts`.
 
+## Big Ideas
+
+- [ ] **Script test runner** — "Run all" button executes the full editor script as a test suite. Each top-level `await` statement runs sequentially; `expect()` results are streamed back line-by-line with pass/fail status. CM6 gutter decorations show green/red per line. No external framework needed — the sandbox + `run-code` infrastructure already executes arbitrary JS; the new piece is splitting the script into statements and collecting per-statement results.
+
+- [ ] **AI test generation** — "Generate test" panel input: user describes what to verify in natural language, the extension sends the current `snapshot` (accessibility tree) + description to the Claude API, streams back `run-code` / `expect()` assertions that are inserted into the editor. Since `run-code` + `expect()` is already fully executable, the generated code can be run immediately with no extra plumbing.
+
+- [ ] **Step debugger** — Step through a `run-code` script line by line. Implementation: inject `__breakpoint__()` calls between statements before sending to the sandbox; `__breakpoint__` posts a `paused` message to the panel and waits for a `resume` postMessage. UI: step/continue buttons in toolbar, current line highlighted in CM6, a variables panel showing `page.url()`, `page.title()`, and any user-defined vars.
+
 ## Medium Priority
 - [x] **CLI `clear` command** — Add `clear` to the CLI REPL to clear terminal output, matching the extension behavior. ([#15](https://github.com/stevez/playwright-repl/issues/15))
 - [x] **Chaining selectors with `>>`** — When args contain `>>`, use `page.locator(<chained>)` instead of ref-based lookup. ([#16](https://github.com/stevez/playwright-repl/issues/16))

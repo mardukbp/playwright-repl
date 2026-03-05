@@ -57,12 +57,25 @@ async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; 
 
     if (!crxApp) crxApp = await crx.start();
 
-    if (activeTabId !== null && activeTabId !== tabId) {
+    // Always detach first — stale frame connections cause "Frame has been detached" errors
+    // (e.g. GitHub SPA navigation replaces frames within the same tab)
+    if (activeTabId !== null) {
       await crxApp.detach(activeTabId).catch(() => {});
       currentPage = null;
+      activeTabId = null;
     }
 
-    currentPage = await crxApp.attach(tabId);
+    // Retry once on "Frame has been detached" — can happen with SPA navigation
+    try {
+      currentPage = await crxApp.attach(tabId);
+    } catch (e) {
+      if (String(e).includes('Frame') && String(e).includes('detached')) {
+        await new Promise(r => setTimeout(r, 500));
+        currentPage = await crxApp.attach(tabId);
+      } else {
+        throw e;
+      }
+    }
     activeTabId = tabId;
     return { ok: true, url: currentPage.url() };
   } catch (e) {
@@ -168,11 +181,11 @@ async function startRecording(): Promise<{ ok: boolean; url?: string; error?: st
 
     const url = crxApp.context().pages()[0]?.url();
 
-    crxApp.recorder.show({
+    await crxApp.recorder.show({
       mode: 'recording',
       language: 'javascript',
       window: { type: 'sidepanel', url: 'panel/panel.html' },
-    }).catch(() => {});
+    });
 
     return { ok: true, url };
   } catch (e) {

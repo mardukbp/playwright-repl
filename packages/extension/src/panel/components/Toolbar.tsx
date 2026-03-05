@@ -5,40 +5,95 @@ import { connectWithRetry, attachToTab } from '@/lib/bridge';
 import { runAndDispatch } from '@/lib/run';
 import { SunIcon, MoonIcon, FolderOpenIcon, SaveIcon, RecordIcon, StopIcon, ExportIcon } from './Icons';
 
-interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'fileName' | 'stepLine' | 'attachedUrl' | 'isAttaching'> {
+interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'fileName' | 'stepLine' | 'attachedUrl' | 'attachedTabId' | 'isAttaching'> {
     dispatch: React.Dispatch<Action>,
 };
 
-function Toolbar({ editorContent, fileName, stepLine, attachedUrl, isAttaching, dispatch }: ToolbarProps) {
+function Toolbar({ editorContent, fileName, stepLine, attachedUrl, attachedTabId, isAttaching, dispatch }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const recorderPortRef = useRef<chrome.runtime.Port | null>(null);
     const prevActionCountRef = useRef(0);
     const [isRecording, setIsRecording] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === 'dark');
     const [availableTabs, setAvailableTabs] = useState<chrome.tabs.Tab[]>([]);
+    const [canAttach, setCanAttach] = useState(true);
+    const [selectedTabId, setSelectedTabId] = useState<number | null>(null);
 
     const lines = useMemo(() => editorContent.split('\n'), [editorContent]);
 
     // ─── Tab switcher ───
 
+    function isInternalUrl(url: string | undefined) {
+        if (!url) return true;
+        return url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('about:');
+    }
+
+    function getTabLabel(tab: chrome.tabs.Tab): string {
+        try {
+            const url = new URL(tab.url!);
+            if (url.protocol === 'chrome:') return `chrome://${url.hostname}`;
+            return url.hostname;
+        } catch {
+            return tab.url ?? '(unknown)';
+        }
+    }
+
     async function loadTabs() {
         if (!chrome.tabs?.query) return;
         const tabs = await chrome.tabs.query({});
-        setAvailableTabs(tabs.filter(t =>
-            t?.url &&
-            !t.url.startsWith('chrome://') &&
-            !t.url.startsWith('chrome-extension://') &&
-            !t.url.startsWith('about:')
-        ));
+        // Keep chrome:// tabs (to preserve tab order) but exclude chrome-extension:// and about: tabs
+        setAvailableTabs(tabs.filter(t => t?.url && !t.url.startsWith('chrome-extension://') && !t.url.startsWith('about:')));
     }
 
-    useEffect(() => { loadTabs(); }, []);
+    async function checkActiveTab() {
+        if (!chrome.tabs?.query) return;
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        setCanAttach(!isInternalUrl(tab?.url));
+    }
 
-    async function handleTabChange(tabId: number) {
+    useEffect(() => {
+        loadTabs();
+        checkActiveTab();
+        if (!chrome.tabs?.onActivated) return;
+        const onActivated = () => { setSelectedTabId(null); checkActiveTab(); };
+        chrome.tabs.onActivated.addListener(onActivated);
+        return () => chrome.tabs.onActivated.removeListener(onActivated);
+    }, []);
+
+    async function doAttach(tabId: number) {
         dispatch({ type: 'ATTACH_START' });
         const res = await attachToTab(tabId);
-        if (res.ok && res.url) dispatch({ type: 'ATTACH_SUCCESS', url: res.url });
-        else dispatch({ type: 'ATTACH_FAIL' });
+        if (res.ok && res.url) {
+            dispatch({ type: 'ATTACH_SUCCESS', url: res.url, tabId });
+            setSelectedTabId(null); // attachedTabId takes over in dropdown
+        } else {
+            dispatch({ type: 'ATTACH_FAIL' });
+            dispatch({ type: 'ADD_LINE', line: { text: `Attach failed: ${res.error ?? 'unknown error'}`, type: 'error' } });
+            // keep selectedTabId so dropdown stays on the failed tab
+        }
+    }
+
+    async function handleTabChange(tabId: number) {
+        const tab = availableTabs.find(t => t.id === tabId);
+        setSelectedTabId(tabId); // show in dropdown immediately
+        if (tab && isInternalUrl(tab.url)) return; // internal: Attach disabled, don't try
+        await doAttach(tabId);
+    }
+
+    // ─── Attach ───
+
+    async function handleAttach() {
+        // Reconnect to the tab shown in the dropdown; only use browser's active tab when nothing is selected/attached
+        const targetTabId = selectedTabId ?? attachedTabId;
+        if (targetTabId !== null) {
+            const tab = availableTabs.find(t => t.id === targetTabId);
+            if (tab && isInternalUrl(tab.url)) return;
+            await doAttach(targetTabId);
+            return;
+        }
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id || isInternalUrl(tab.url)) return;
+        await doAttach(tab.id);
     }
 
     // ─── File operations ───
@@ -238,16 +293,17 @@ function Toolbar({ editorContent, fileName, stepLine, attachedUrl, isAttaching, 
             </div>
             <div id="toolbar-right" className="flex items-center gap-2">
                 <select
-                    value={attachedUrl ?? ''}
+                    value={selectedTabId ?? attachedTabId ?? ''}
                     title="Switch tab"
                     onFocus={loadTabs}
                     onChange={e => {
-                        const tabId = availableTabs.find(t => t.url === e.target.value)?.id;
+                        const tabId = Number(e.target.value);
                         if (tabId) handleTabChange(tabId);
                     }}
                 >
+                    {!selectedTabId && !attachedTabId && <option value="">— select tab —</option>}
                     {availableTabs.map(tab => (
-                        <option key={tab.id} value={tab.url}>{new URL(tab.url!).hostname}</option>
+                        <option key={tab.id} value={tab.id}>{getTabLabel(tab)}</option>
                     ))}
                 </select>
                 <div
@@ -260,11 +316,11 @@ function Toolbar({ editorContent, fileName, stepLine, attachedUrl, isAttaching, 
                         data-status={isAttaching ? 'attaching' : attachedUrl ? 'connected' : 'disconnected'}
                         title={isAttaching ? 'Connecting...' : attachedUrl ? `Attached: ${attachedUrl}` : 'Not attached'}
                     />
-                    {attachedUrl
-                        ? <span className="max-w-[160px] truncate" title={attachedUrl}>{attachedUrl.replace(/^https?:\/\//, '')}</span>
-                        : <span>{isAttaching ? 'Connecting...' : 'Not attached'}</span>
-                    }
+                    {isAttaching && <span>Connecting...</span>}
                 </div>
+                <button id="attach-btn" title="Attach to active tab" disabled={isAttaching || !canAttach || availableTabs.some(t => t.id === selectedTabId && isInternalUrl(t.url))} onClick={handleAttach}>
+                    Attach
+                </button>
                 <span id="file-info" className="text-(--text-dim) text-[11px]">{fileName}</span>
             </div>
         </div>

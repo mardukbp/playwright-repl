@@ -16,7 +16,7 @@ function App() {
   async function doAttach(tabId: number) {
     dispatch({ type: 'ATTACH_START' });
     const res = await attachToTab(tabId);
-    if (res.ok && res.url) dispatch({ type: 'ATTACH_SUCCESS', url: res.url });
+    if (res.ok && res.url) dispatch({ type: 'ATTACH_SUCCESS', url: res.url, tabId });
     else dispatch({ type: 'ATTACH_FAIL' });
   }
 
@@ -38,7 +38,12 @@ function App() {
       if (tabId) doAttach(tabId);
     });
 
-    const onActivated = (info: chrome.tabs.TabActiveInfo) => doAttach(info.tabId);
+    const onActivated = async (info: chrome.tabs.TabActiveInfo) => {
+      const tab = await chrome.tabs.get(info.tabId).catch(() => null);
+      const url = tab?.url ?? '';
+      if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('about:')) return;
+      doAttach(info.tabId);
+    };
     chrome.tabs.onActivated.addListener(onActivated);
     return () => chrome.tabs.onActivated.removeListener(onActivated);
   }, []);
@@ -57,6 +62,7 @@ function App() {
         fileName={state.fileName}
         stepLine={state.stepLine}
         attachedUrl={state.attachedUrl}
+        attachedTabId={state.attachedTabId}
         isAttaching={state.isAttaching}
         dispatch={dispatch}
       />

@@ -1,7 +1,6 @@
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import type { PanelState, Action } from "@/reducer";
-import { exportToPlaywright } from '@/lib/converter';
-import { jsonlToRepl } from '@/lib/converter';
+import { exportToPlaywright, jsonlToRepl } from '@/lib/converter';
 import { connectWithRetry, attachToTab } from '@/lib/bridge';
 import { runAndDispatch } from '@/lib/run';
 import { SunIcon, MoonIcon, FolderOpenIcon, SaveIcon, RecordIcon, StopIcon, ExportIcon } from './Icons';

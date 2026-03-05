@@ -12,7 +12,7 @@
  * Each page method call is forwarded to background.ts via chrome.runtime.sendMessage.
  */
 
-type PendingRun = { resolve: (v: string) => void; reject: (e: Error) => void };
+type PendingRun = { resolve: (v: string) => void; reject: (e: unknown) => void };
 
 let frame: HTMLIFrameElement | null = null;
 let frameReady: Promise<HTMLIFrameElement> | null = null;
@@ -37,7 +37,14 @@ function initSandbox(): Promise<HTMLIFrameElement> {
         if (e.data.type === 'page-call') {
             const { chain, id } = e.data;
             try {
-                const response = await chrome.runtime.sendMessage({ type: 'page-call', chain });
+                // chrome.runtime.sendMessage uses JSON — serialize RegExp args so they survive
+                const serialized = (chain as { method: string; args: unknown[] }[]).map(step => ({
+                    ...step,
+                    args: step.args.map(a =>
+                        a instanceof RegExp ? { __type: 'RegExp', source: a.source, flags: a.flags } : a
+                    ),
+                }));
+                const response = await chrome.runtime.sendMessage({ type: 'page-call', chain: serialized });
                 if (response?.error) {
                     frame!.contentWindow!.postMessage(
                         { type: 'page-result', id, error: response.error },
@@ -63,7 +70,7 @@ function initSandbox(): Promise<HTMLIFrameElement> {
             const pending = pendingRuns.get(id);
             if (!pending) return;
             pendingRuns.delete(id);
-            if (error) pending.reject(new Error(error));
+            if (error) pending.reject(error);
             else pending.resolve(result);
         }
     });

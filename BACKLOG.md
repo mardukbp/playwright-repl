@@ -38,6 +38,14 @@
 - [x] **Fix failing recording component tab** — Recording via the record button fails to capture interactions on the component tab. Investigate why the recorder port/JSONL pipeline doesn't pick up actions on that tab and restore correct recording behaviour.
 - [ ] **Auto-attach fails when only one tab open** — On fresh panel load with only one tab (e.g. `chrome://extensions`), the extension shows "Not attached". Adding a second regular tab (e.g. github.com) makes it work. Likely `getActiveTabId()` returns a chrome:// tab which is rejected, and there's no fallback to retry on next tab. Investigate and add a retry or clearer error.
 
+- [ ] **Replace sandbox.html with `swDebugEval` for `run-code`** — The sandbox iframe + page-proxy architecture was needed because user code couldn't access the real `page` object. Now that `swDebugEval` evaluates directly in the background worker's runtime (where `page`, `crxApp`, `expect`, `activeTabId` are live globals), `run-code` can be replaced with a direct `swDebugEval(code)` call. Eliminates `sandbox.html`, `sandbox-runner.ts`, the `page-call` / `page-evaluate` message protocol, and all proxy machinery in `background.ts`. Multi-line support already works via async IIFE wrapping. Note: `expect().not` negation (currently broken in sandbox) would also need porting.
+
+## Console (Phase 2)
+
+- [ ] **CDP remote object inspection** — `document`, `window`, and other DOM objects currently serialize as `"ref: <Document>"` because `page.evaluate()` can't cross the serialization boundary. Use `chrome.debugger` `Runtime.evaluate` → `Runtime.getProperties` to get lazy remote object handles and build an expandable tree without full serialization.
+- [ ] **Console autocomplete** — Autocomplete in ConsoleInput: pw keywords when input starts with a command word, JS property completions (via `Runtime.completionsForExpression` CDP call) for `page.` chains and JS expressions.
+- [ ] **Console input in scroll flow** — Option to render the input row inline with entries (Chrome DevTools "input flows with output" style) vs. fixed at bottom. Currently fixed at bottom.
+
 ## Low Priority
 
 - [ ] **Recorder: merge fill + Enter into `fill --submit`** — When recording, absorb `press Enter` after a `fill` into a single `fill "loc" "value" --submit` command. The `--submit` flag already exists in the engine. Change is in `recorder.ts` `handleKeydown`.

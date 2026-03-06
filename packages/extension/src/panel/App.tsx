@@ -7,7 +7,7 @@ import CommandInput, { CommandInputHandle } from './components/CommandInput'
 import { panelReducer, initialState } from './reducer'
 import { runAndDispatch } from './lib/run'
 import { attachToTab, cdpEvaluate } from './lib/bridge'
-import { swDebugEval } from './lib/sw-debugger'
+import { swDebugEval, swGetProperties } from './lib/sw-debugger'
 import { Console, type ConsoleHandle } from './components/Console';
 import { fromCdpRemoteObject, type CdpRemoteObject } from './components/Console/cdpToSerialized';
 
@@ -121,7 +121,7 @@ function App() {
               if (!raw?.result) throw new Error('No result from service worker');
               const result = raw.result as CdpRemoteObject;
               if (result.type === 'undefined') return { text: 'undefined' };
-              return { value: fromCdpRemoteObject(result) };
+              return { value: fromCdpRemoteObject(result), getProperties: swGetProperties };
             },
             js: async expr => {
               const raw = await cdpEvaluate(expr) as { result?: CdpRemoteObject; error?: string };

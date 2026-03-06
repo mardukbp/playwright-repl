@@ -9,6 +9,7 @@ interface Props {
     data: SerializedValue;
     label?: string;
     depth?: number;
+    getProperties?: (objectId: string) => Promise<unknown>;
 }
 
 function inlineSummary(data: SerializedValue): string {
@@ -34,7 +35,7 @@ function inlineSummary(data: SerializedValue): string {
     return '';
 }
 
-export function ObjectTree({ data, label, depth = 0 }: Props) {
+export function ObjectTree({ data, label, depth = 0, getProperties }: Props) {
     const [open, setOpen] = useState(depth < 1);
     const [childProps, setChildProps] = useState<Record<string, SerializedValue> | null>(null);
     const [loading, setLoading] = useState(false);
@@ -45,11 +46,13 @@ export function ObjectTree({ data, label, depth = 0 }: Props) {
             ? data.objectId
             : undefined;
 
+    const resolveProperties = getProperties ?? cdpGetProperties;
+
     useEffect(() => {
         if (open && objectId && !fetchedRef.current) {
             fetchedRef.current = true;
             setLoading(true);
-            cdpGetProperties(objectId).then(raw => {
+            resolveProperties(objectId).then(raw => {
                 setChildProps(fromCdpGetProperties(raw));
                 setLoading(false);
             });
@@ -87,7 +90,7 @@ export function ObjectTree({ data, label, depth = 0 }: Props) {
                             ? <div className="ot-row"><span className="ot-empty">Loading…</span></div>
                             : keys.map(k => (
                                 <div key={k} className="ot-row">
-                                    <ObjectTree data={childProps![k]} label={k} depth={depth + 1} />
+                                    <ObjectTree data={childProps![k]} label={k} depth={depth + 1} getProperties={getProperties} />
                                 </div>
                             ))
                         }

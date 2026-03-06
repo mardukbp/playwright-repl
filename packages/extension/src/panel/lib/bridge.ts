@@ -8,10 +8,6 @@ export async function cdpGetProperties(objectId: string): Promise<unknown> {
   return chrome.runtime.sendMessage({ type: 'cdp-get-properties', objectId });
 }
 
-export async function swEvaluate(expression: string): Promise<unknown> {
-  return chrome.runtime.sendMessage({ type: 'sw-eval', expression });
-}
-
 export async function executeCommand(command: string): Promise<CommandResult> {
   return chrome.runtime.sendMessage({ type: 'run', command });
 }

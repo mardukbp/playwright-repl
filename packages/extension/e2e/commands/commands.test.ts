@@ -433,7 +433,7 @@ test.describe('run-code: expect()', () => {
     await sendCommand(panelPage, `goto ${TEST_URL}`);
     const result = await sendViaUI(panelPage, "run-code await expect(page).toHaveTitle('React • TodoMVC')");
     expect(result.isError).toBe(false);
-    expect(result.text).toBe('passed');
+    expect(result.text).toBe('Done');
   });
 
   test('expect(page).toHaveTitle() fails with assertion error', async ({ testPage: _, panelPage }) => {
@@ -447,14 +447,14 @@ test.describe('run-code: expect()', () => {
     await sendCommand(panelPage, `goto ${TEST_URL}`);
     const result = await sendViaUI(panelPage, "run-code await expect(page).toHaveURL(/todomvc/)");
     expect(result.isError).toBe(false);
-    expect(result.text).toBe('passed');
+    expect(result.text).toBe('Done');
   });
 
   test('expect(locator).toBeVisible() passes', async ({ testPage: _, panelPage }) => {
     await sendCommand(panelPage, `goto ${TEST_URL}`);
     const result = await sendViaUI(panelPage, "run-code await expect(page.locator('h1')).toBeVisible()");
     expect(result.isError).toBe(false);
-    expect(result.text).toBe('passed');
+    expect(result.text).toBe('Done');
   });
 
   test('expect(locator).toBeVisible() fails for missing element', async ({ testPage: _, panelPage }) => {
@@ -468,6 +468,6 @@ test.describe('run-code: expect()', () => {
     await sendCommand(panelPage, `goto ${TEST_URL}`);
     const result = await sendViaUI(panelPage, "run-code await expect(page.locator('h1')).toHaveText('todos')");
     expect(result.isError).toBe(false);
-    expect(result.text).toBe('passed');
+    expect(result.text).toBe('Done');
   });
 });

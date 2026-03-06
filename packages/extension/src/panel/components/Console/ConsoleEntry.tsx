@@ -22,7 +22,7 @@ export function ConsoleEntry({ entry }: { entry: Entry }) {
                     </div>
                 )}
                 {entry.status === 'error' && (
-                    <div className="pt-0.5 text-(--color-error)">{entry.errorText}</div>
+                    <div className="pt-0.5 text-(--color-error) whitespace-pre-wrap">{entry.errorText}</div>
                 )}
             </div>
         </div>

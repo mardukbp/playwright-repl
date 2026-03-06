@@ -17,17 +17,22 @@ export interface ConsoleEntry {
   status: 'pending' | 'done' | 'error';
   value?: SerializedValue;
   text?: string;
+  image?: string;
   errorText?: string;
   getProperties?: (objectId: string) => Promise<unknown>;
 }
 
+type ExecutorResult = { value?: SerializedValue; text?: string; image?: string; getProperties?: (objectId: string) => Promise<unknown> };
+
 export interface ConsoleExecutors {
-  playwright: (code: string) => Promise<{ value?: SerializedValue; text?: string; getProperties?: (objectId: string) => Promise<unknown> }>;
-  js: (expression: string) => Promise<{ value?: SerializedValue; text?: string; getProperties?: (objectId: string) => Promise<unknown> }>;
+  playwright: (code: string) => Promise<ExecutorResult>;
+  js: (expression: string) => Promise<ExecutorResult>;
+  pw?: (command: string) => Promise<ExecutorResult>;
 }
 
 export interface ConsoleHandle {
   clear: () => void;
+  addResult: (result: ExecutorResult & { input: string }) => void;
 }
 
 export interface ConsoleProps {

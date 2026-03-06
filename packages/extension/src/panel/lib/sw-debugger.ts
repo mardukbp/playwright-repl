@@ -4,9 +4,11 @@
 
 let swTargetId: string | null = null;
 
-chrome.debugger.onDetach.addListener((source) => {
-    if (source.targetId === swTargetId) swTargetId = null;
-});
+if (typeof chrome !== 'undefined') {
+    chrome.debugger.onDetach.addListener((source) => {
+        if (source.targetId === swTargetId) swTargetId = null;
+    });
+}
 
 /** Debug helper — call from console: (await import('/panel/lib/sw-debugger.js')).swDebugTargets() */
 export function swDebugTargets(): Promise<chrome.debugger.TargetInfo[]> {
@@ -41,8 +43,14 @@ async function ensureAttached(): Promise<string> {
     if (swTargetId === targetId) return targetId;
     await new Promise<void>((resolve, reject) => {
         chrome.debugger.attach({ targetId }, '1.3', () => {
-            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-            else { swTargetId = targetId; resolve(); }
+            if (chrome.runtime.lastError) {
+                const msg = chrome.runtime.lastError.message ?? '';
+                // Extension already attached (persists after panel page closes) — reuse it
+                if (/already attached/i.test(msg)) { swTargetId = targetId; resolve(); }
+                else reject(new Error(msg));
+            } else {
+                swTargetId = targetId; resolve();
+            }
         });
     });
     return targetId;
@@ -70,7 +78,9 @@ export async function swGetProperties(objectId: string): Promise<unknown> {
 export async function swDebugEval(expression: string): Promise<unknown> {
     const targetId = await ensureAttached();
     const isMultiLine = expression.includes('\n');
-    const wrapped = isMultiLine
+    // Statement form (ends with ';') can't be used in `return (...)` — use bare async IIFE
+    const isStatement = isMultiLine || expression.trimEnd().endsWith(';');
+    const wrapped = isStatement
         ? `(async () => {\n${expression}\n})()`
         : `(async () => { return (${expression}) })()`;
     return new Promise((resolve, reject) => {

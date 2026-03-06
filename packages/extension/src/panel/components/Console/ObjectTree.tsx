@@ -125,7 +125,7 @@ export function ObjectTree({ data, label, depth = 0, getProperties }: Props) {
                         ? <div className="ot-row"><span className="ot-empty">Loading…</span></div>
                         : keys.map(k => (
                             <div key={k} className="ot-row">
-                                <ObjectTree data={propsToShow[k]} label={k} depth={depth + 1} />
+                                <ObjectTree data={propsToShow[k]} label={k} depth={depth + 1} getProperties={getProperties} />
                             </div>
                         ))
                     }

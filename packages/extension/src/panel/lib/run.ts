@@ -4,7 +4,8 @@ import { COMMANDS } from '@/lib/commands';
 import type { CommandResult } from '@/types';
 import type { Action } from '@/reducer';
 import { getCommandHistory, clearHistory, addCommand } from '@/lib/command-history';
-import { runCodeInSandbox } from '@/lib/sandbox-runner';
+import { swDebugEval } from '@/lib/sw-debugger';
+import type { CdpRemoteObject } from '@/components/Console/cdpToSerialized';
 
 function runLocalCommand(command: string, dispatch: React.Dispatch<Action>): boolean {
     if (command.trim().startsWith('#')) {
@@ -45,17 +46,22 @@ export async function runAndDispatch(command: string, dispatch: React.Dispatch<A
     addCommand(command);
     dispatch({ type: 'COMMAND_SUBMITTED', line: { text: command, type: 'command' } });
 
-    // run-code is handled locally via sandbox iframe (bypasses background service worker)
+    // run-code is handled via swDebugEval (background service worker runtime)
     const cmdName = command.trim().split(/\s+/)[0].toLowerCase();
     if (cmdName === 'run-code') {
         const code = command.trim().slice('run-code'.length).trim();
         try {
-            const result = await runCodeInSandbox(code);
-            const text = result.text ?? 'Done';
+            const raw = await swDebugEval(code) as { result?: CdpRemoteObject };
+            const r = raw?.result;
+            let text: string;
+            if (!r || r.type === 'undefined' || r.type === 'object' || r.type === 'function') text = 'Done';
+            else if (r.type === 'string') text = r.value as string;
+            else if (r.type === 'number' || r.type === 'boolean') text = String(r.value);
+            else text = 'Done';
             dispatch({ type: 'COMMAND_SUCCESS', line: { text, type: 'success' } });
             return { text, isError: false };
-        } catch (e) {
-            const text = String(e);
+        } catch (e: any) {
+            const text = e?.message ?? String(e);
             dispatch({ type: 'COMMAND_SUCCESS', line: { text, type: 'error' } });
             return { text, isError: true };
         }

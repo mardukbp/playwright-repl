@@ -11,11 +11,11 @@ interface Props extends ConsoleProps {
 }
 
 export function Console({ executors, className, ref }: Props) {
-    const { entries, execute, clear } = useConsole(executors);
+    const { entries, execute, clear, addResult } = useConsole(executors);
     const inputRef = useRef<ConsoleInputHandle>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    useImperativeHandle(ref, () => ({ clear }));
+    useImperativeHandle(ref, () => ({ clear, addResult }));
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'instant' });

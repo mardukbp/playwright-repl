@@ -200,102 +200,6 @@ async function stopRecording(): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-// ─── Page call (sandbox iframe → background) ─────────────────────────────────
-
-function deserializeArg(a: unknown): unknown {
-  if (a && typeof a === 'object') {
-    if ((a as any).__type === 'RegExp') {
-      const { source, flags } = a as { source: string; flags: string };
-      return new RegExp(source, flags);
-    }
-    // Function: kept as serialized object, resolved in resolveArgs below
-  }
-  return a;
-}
-
-// Methods that accept a pageFunction as first arg — eval is blocked in SW,
-// so we convert { __type: 'Function', source } to a callable IIFE string.
-const FN_METHODS = new Set(['evaluate', 'evaluateHandle', 'waitForFunction']);
-
-function resolveArgs(method: string, args: unknown[]): unknown[] {
-  if (FN_METHODS.has(method) && args[0] && typeof args[0] === 'object' && (args[0] as any).__type === 'Function') {
-    const source = (args[0] as any).source as string;
-    const fnArg = args[1];
-    let expr: string;
-    if (fnArg !== undefined) {
-      try { expr = `(${source})(${JSON.stringify(fnArg)})`; }
-      catch { expr = `(${source})()`; }
-    } else {
-      expr = `(${source})()`;
-    }
-    return [expr];
-  }
-  return args;
-}
-
-async function handlePageCall(chain: { method: string; args: unknown[] }[]): Promise<{ result?: unknown; error?: string }> {
-  const deserialized = chain.map(step => ({ ...step, args: step.args.map(deserializeArg) }));
-  chain = deserialized;
-  const page = await ensurePage();
-  if (!page) return { error: 'Not attached to any tab. Click Attach to connect.' };
-  try {
-    // __expect__ step: resolve chain up to that point → real Locator, then call expect(locator)[matcher]()
-    const expectIdx = chain.findIndex(s => s.method === '__expect__');
-    if (expectIdx !== -1) {
-      let target: any = page;
-      for (let i = 0; i < expectIdx; i++) {
-        const { method, args } = chain[i];
-        const fn = target[method];
-        if (typeof fn !== 'function') return { error: `${method} is not a function` };
-        target = await fn.apply(target, resolveArgs(method, args));
-      }
-      const [matcher, ...matcherArgs] = chain[expectIdx].args as [string, ...unknown[]];
-      await (expect(target) as any)[matcher](...matcherArgs);
-      return { result: 'passed' };
-    }
-
-    let obj: any = page;
-    for (const { method, args } of chain) {
-      const fn = obj[method];
-      if (typeof fn !== 'function') return { error: `${method} is not a function` };
-      obj = await fn.apply(obj, resolveArgs(method, args));
-    }
-    // Only serialize plain data — class instances (Locator, Response) return null
-    const isPlainData = obj == null || typeof obj !== 'object' || Array.isArray(obj) || Object.getPrototypeOf(obj) === Object.prototype;
-    if (!isPlainData) return { result: null };
-    try {
-      return { result: JSON.parse(JSON.stringify(obj)) };
-    } catch {
-      return { result: null };
-    }
-  } catch (e) {
-    return { error: String(e) };
-  }
-}
-
-// ─── Page evaluate (direct path, bypasses chain proxy) ───────────────────────
-
-async function handlePageEvaluate(msg: { method: string; source: string; isString: boolean; arg: unknown }): Promise<{ result?: unknown; error?: string }> {
-  const page = await ensurePage();
-  if (!page) return { error: 'Not attached to any tab. Click Attach to connect.' };
-  const { source, isString, arg } = msg;
-  let expr: string;
-  if (isString) {
-    expr = source;
-  } else if (arg !== undefined) {
-    try { expr = `(${source})(${JSON.stringify(arg)})`; }
-    catch { expr = `(${source})()`; }
-  } else {
-    expr = `(${source})()`;
-  }
-  try {
-    const result = await (page as any)[msg.method](expr);
-    return { result: result ?? null };
-  } catch (e) {
-    return { error: String(e) };
-  }
-}
-
 // ─── CDP Evaluate ────────────────────────────────────────────────────────────
 
 function cdpEvaluate(tabId: number, expression: string): Promise<unknown> {
@@ -334,8 +238,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'health')        { sendResponse({ ok: !!crxApp }); return false; }
   if (msg.type === 'record-start')  { startRecording().then(sendResponse); return true; }
   if (msg.type === 'record-stop')   { stopRecording().then(sendResponse); return true; }
-  if (msg.type === 'page-call')     { handlePageCall(msg.chain).then(sendResponse).catch(e => sendResponse({ error: String(e) })); return true; }
-  if (msg.type === 'page-evaluate') { handlePageEvaluate(msg).then(sendResponse).catch(e => sendResponse({ error: String(e) })); return true; }
   if (msg.type === 'cdp-evaluate')  {
     if (!activeTabId) { sendResponse({ error: 'Not attached to any tab.' }); return false; }
     cdpEvaluate(activeTabId, msg.expression).then(sendResponse).catch(e => sendResponse({ error: String(e) }));

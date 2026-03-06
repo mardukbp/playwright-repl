@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import type { ConsoleEntry, ConsoleExecutors } from './types';
+import { COMMAND_NAMES } from '@/lib/commands';
+
+const PW_COMMANDS = new Set(COMMAND_NAMES);
 
 export function useConsole(executors: ConsoleExecutors) {
     const [entries, setEntries] = useState<ConsoleEntry[]>([]);
@@ -16,8 +19,12 @@ export function useConsole(executors: ConsoleExecutors) {
         setEntries([]);
     }
 
-    function detectMode(input: string): 'playwright' | 'js' {
+    function detectMode(input: string): 'playwright' | 'js' | 'pw' {
         const t = input.trim();
+        if (executors.pw) {
+            const firstToken = t.split(/\s+/)[0].toLowerCase();
+            if (PW_COMMANDS.has(firstToken)) return 'pw';
+        }
         if (t === 'page' || t.startsWith('page.') || t.startsWith('page[') ||
             t.startsWith('await page') ||
             t === 'expect' || t.startsWith('expect(') || t.startsWith('await expect(') ||
@@ -38,12 +45,19 @@ export function useConsole(executors: ConsoleExecutors) {
         try {
             const result = mode === 'playwright'
                 ? await executors.playwright(trimmed)
+                : mode === 'pw'
+                ? await executors.pw!(trimmed)
                 : await executors.js(trimmed);
-            updateEntry(id, { status: 'done', value: result.value, text: result.text, getProperties: result.getProperties });
+            updateEntry(id, { status: 'done', value: result.value, text: result.text, image: result.image, getProperties: result.getProperties });
         } catch (e: any) {
             updateEntry(id, { status: 'error', errorText: e?.message ?? String(e) });
         }
     }
 
-    return { entries, execute, clear };
+    function addResult({ input, value, text, image, getProperties }: { input: string; value?: ConsoleEntry['value']; text?: string; image?: string; getProperties?: ConsoleEntry['getProperties'] }) {
+        const id = Math.random().toString(36).slice(2);
+        addEntry({ id, input, status: 'done', value, text, image, getProperties });
+    }
+
+    return { entries, execute, clear, addResult };
 }

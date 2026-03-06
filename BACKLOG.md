@@ -15,6 +15,8 @@
 
 - [ ] **AI test generation** — "Generate test" panel input: user describes what to verify in natural language, the extension sends the current `snapshot` (accessibility tree) + description to the Claude API, streams back `run-code` / `expect()` assertions that are inserted into the editor. Since `run-code` + `expect()` is already fully executable, the generated code can be run immediately with no extra plumbing.
 
+- [ ] **AI browser agent** — Allow an AI model (e.g. Claude) to directly operate the browser. The panel sends the current `snapshot` + user goal to the Claude API; Claude responds with a sequence of `.pw` commands or `swDebugEval` calls (click, fill, goto, verify, etc.); each step is executed via the existing `executeCommand` / `swDebugEval` pipeline and the result fed back to the model for the next step. The agent loop runs until the goal is achieved or an error is hit. UI: "Ask AI" input in the panel, streaming step output in the console.
+
 - [ ] **Step debugger** — Step through a `run-code` script line by line. Implementation: inject `__breakpoint__()` calls between statements before sending to the sandbox; `__breakpoint__` posts a `paused` message to the panel and waits for a `resume` postMessage. UI: step/continue buttons in toolbar, current line highlighted in CM6, a variables panel showing `page.url()`, `page.title()`, and any user-defined vars.
 
 ## Medium Priority
@@ -23,6 +25,7 @@
 - [x] **Upgrade editor to CodeMirror 6** — Replace plain `<textarea>` in `EditorPane.tsx` with CodeMirror 6 (~30KB gzipped). Gains: syntax highlighting, proper selections, undo/redo, search. Potential custom `.pw` syntax mode later.
 - [x] **Toolbar icons** — Replace text buttons (Open, Save, Export) with SVG icons in `Toolbar.tsx`, similar to existing sun/moon toggle in `Icons.tsx`.
 - [ ] **Editor context menu** — Right-click menu in the editor with: Run line, Copy, Export to TypeScript, Copy to clipboard.
+- [ ] **Record into editor (dual mode)** — Editor has two modes toggled in the toolbar: **`.pw` mode** records interactions as keyword commands (`click`, `fill`, `goto`, etc.) streamed live into the editor buffer; **`JS` mode** records interactions as Playwright JS (`await page.click(...)`) and also executes each line immediately via `swDebugEval` as it is appended (live REPL-style). Stop button ends the session. Currently recording only populates the editor on session end via JSONL replay; this makes it live and incremental in both modes.
 - [ ] **Capture locator** — "Pick element" mode: user clicks on the page, extension captures a Playwright locator string (`getByRole(...)`, `getByText(...)`) via `chrome.scripting.executeScript` overlay, similar to recorder.
 - [ ] **Extract shared `resolveArgs`** — The verify-command translation, text-locator resolution, and run-code auto-wrap logic is duplicated between `extension-server.ts` and `repl.ts`. Extract to a shared `core` utility.
 - [ ] **Failed commands not recorded** — `packages/cli/src/repl.ts`: `session.record(line)` only runs after success; replay files miss failed commands
@@ -45,6 +48,14 @@
 - [ ] **CDP remote object inspection** — `document`, `window`, and other DOM objects currently serialize as `"ref: <Document>"` because `page.evaluate()` can't cross the serialization boundary. Use `chrome.debugger` `Runtime.evaluate` → `Runtime.getProperties` to get lazy remote object handles and build an expandable tree without full serialization.
 - [ ] **Console autocomplete** — Autocomplete in ConsoleInput: pw keywords when input starts with a command word, JS property completions (via `Runtime.completionsForExpression` CDP call) for `page.` chains and JS expressions.
 - [ ] **Console input in scroll flow** — Option to render the input row inline with entries (Chrome DevTools "input flows with output" style) vs. fixed at bottom. Currently fixed at bottom.
+- [ ] **Richer console output types** — Console currently renders text, object trees, and screenshots. Add: `info` banners (blue tint), `warning`, `code-block` (syntax-highlighted CM6 read-only view for snapshot/HTML output), image rendering for `screenshot` results. Match all output types that the terminal pane already shows.
+- [ ] **Terminal → console output parity** — `.pw` commands run via `executeCommand` (the terminal tab flow) should also stream their results into the console: text responses, screenshots, snapshot trees. Goal: everything visible in the terminal is also visible in the console, so the two panels stay in sync.
+- [ ] **Editor JS mode** — Add a mode toggle in `EditorPane` (`.pw` / `JS`). In JS mode, the editor uses `@codemirror/lang-javascript` highlighting and the "Run" button sends the full script via `swDebugEval` instead of `run-code` + sandbox. Removes the need for the `run-code` command prefix in scripts.
+- [ ] **Console recording / export** — Commands typed in the console can be exported as a `.pw` script or JS file. Button in console toolbar: "Copy session" dumps all input entries in order. Enables using the console as a scratchpad and promoting the session to the editor.
+
+## Console (Phase 3 — terminal replacement)
+
+- [ ] **Drop terminal tab** — Once console has full feature parity (all output types, JS mode, recording, autocomplete), remove the terminal tab entirely and make the console the single interaction surface. Migration path: (1) verify parity checklist above, (2) move `run-code` / editor "Run" to `swDebugEval`, (3) redirect `executeCommand` output to console, (4) remove `ConsolePane` / terminal reducer state, (5) rename Console → REPL in UI.
 
 ## Low Priority
 

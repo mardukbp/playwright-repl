@@ -4,9 +4,11 @@
 
 let swTargetId: string | null = null;
 
-chrome.debugger.onDetach.addListener((source) => {
-    if (source.targetId === swTargetId) swTargetId = null;
-});
+if (typeof chrome !== 'undefined') {
+    chrome.debugger.onDetach.addListener((source) => {
+        if (source.targetId === swTargetId) swTargetId = null;
+    });
+}
 
 /** Debug helper — call from console: (await import('/panel/lib/sw-debugger.js')).swDebugTargets() */
 export function swDebugTargets(): Promise<chrome.debugger.TargetInfo[]> {

@@ -20,7 +20,10 @@ export function useConsole(executors: ConsoleExecutors) {
         const t = input.trim();
         if (t === 'page' || t.startsWith('page.') || t.startsWith('page[') ||
             t.startsWith('await page') ||
-            t.startsWith('expect(') || t.startsWith('await expect(')) return 'playwright';
+            t === 'expect' || t.startsWith('expect(') || t.startsWith('await expect(') ||
+            t === 'crxApp' || t.startsWith('crxApp.') ||
+            t === 'context' || t.startsWith('context.') || t.startsWith('await context') ||
+            t === 'activeTabId') return 'playwright';
         return 'js';
     }
 
@@ -36,7 +39,7 @@ export function useConsole(executors: ConsoleExecutors) {
             const result = mode === 'playwright'
                 ? await executors.playwright(trimmed)
                 : await executors.js(trimmed);
-            updateEntry(id, { status: 'done', value: result.value, text: result.text });
+            updateEntry(id, { status: 'done', value: result.value, text: result.text, getProperties: result.getProperties });
         } catch (e: any) {
             updateEntry(id, { status: 'error', errorText: e?.message ?? String(e) });
         }

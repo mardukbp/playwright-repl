@@ -15,7 +15,7 @@ export function ConsoleEntry({ entry }: { entry: Entry }) {
                 {entry.status === 'done' && (
                     <div className="pt-0.5">
                         {entry.value !== undefined ? (
-                            <ObjectTree data={entry.value} />
+                            <ObjectTree data={entry.value} getProperties={entry.getProperties} />
                         ) : (
                             <span className="text-(--color-success)">{entry.text}</span>
                         )}

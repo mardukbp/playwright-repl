@@ -78,7 +78,7 @@ async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; 
       }
     }
     activeTabId = tabId;
-    Object.assign(globalThis, { page: currentPage, crxApp, activeTabId, expect });
+    Object.assign(globalThis, { page: currentPage, context: crxApp.context(), crxApp, activeTabId, expect });
     return { ok: true, url: currentPage.url() };
   } catch (e) {
     activeTabId = null;
@@ -346,4 +346,5 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     cdpGetProperties(activeTabId, msg.objectId).then(sendResponse).catch(e => sendResponse({ error: String(e) }));
     return true;
   }
+  if (msg.type === 'ping') { sendResponse({ pong: true }); return false; }
 });

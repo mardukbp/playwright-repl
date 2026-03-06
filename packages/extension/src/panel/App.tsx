@@ -6,9 +6,10 @@ import TerminalPane from './components/TerminalPane'
 import CommandInput, { CommandInputHandle } from './components/CommandInput'
 import { panelReducer, initialState } from './reducer'
 import { runAndDispatch } from './lib/run'
-import { attachToTab, executeCommand, jsEval } from './lib/bridge'
+import { attachToTab, cdpEvaluate } from './lib/bridge'
 import { Console, type ConsoleHandle } from './components/Console';
 import { runCodeInSandbox } from '@/lib/sandbox-runner';
+import { fromCdpRemoteObject, type CdpRemoteObject } from './components/Console/cdpToSerialized';
 
 function App() {
   const [state, dispatch] = useReducer(panelReducer, initialState)
@@ -114,9 +115,13 @@ function App() {
         <Console
           ref={consoleRef}
           executors={{
-            pw: cmd => executeCommand(cmd),
             playwright: code => runCodeInSandbox(code),
-            js: expr => jsEval(expr),
+            js: async expr => {
+              const raw = await cdpEvaluate(expr) as { result?: CdpRemoteObject; error?: string };
+              if (raw?.error) throw new Error(raw.error);
+              if (!raw?.result) throw new Error('No result');
+              return { value: fromCdpRemoteObject(raw.result) };
+            },
           }}
         />
       )}

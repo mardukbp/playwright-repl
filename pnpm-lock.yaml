@@ -64,6 +64,9 @@ importers:
       '@codemirror/commands':
         specifier: ^6.10.2
         version: 6.10.2
+      '@codemirror/lang-javascript':
+        specifier: ^6.2.5
+        version: 6.2.5
       '@codemirror/language':
         specifier: ^6.12.2
         version: 6.12.2
@@ -247,6 +250,9 @@ packages:
 
   '@codemirror/commands@6.10.2':
     resolution: {integrity: sha512-vvX1fsih9HledO1c9zdotZYUZnE4xV0m6i3m25s5DIfXofuprk6cRcLUZvSk3CASUbwjQX21tOGbkY2BH8TpnQ==}
+
+  '@codemirror/lang-javascript@6.2.5':
+    resolution: {integrity: sha512-zD4e5mS+50htS7F+TYjBPsiIFGanfVqg4HyUz6WNFikgOPf2BgKlx+TQedI1w6n/IqRBVBbBWmGFdLB/7uxO4A==}
 
   '@codemirror/language@6.12.2':
     resolution: {integrity: sha512-jEPmz2nGGDxhRTg3lTpzmIyGKxz3Gp3SJES4b0nAuE5SWQoKdT5GoQ69cwMmFd+wvFUhYirtDTr0/DRHpQAyWg==}
@@ -495,6 +501,9 @@ packages:
 
   '@lezer/highlight@1.2.3':
     resolution: {integrity: sha512-qXdH7UqTvGfdVBINrgKhDsVTJTxactNNxLk7+UMwZhU13lMHaOBlJe9Vqp907ya56Y3+ed2tlqzys7jDkTmW0g==}
+
+  '@lezer/javascript@1.5.4':
+    resolution: {integrity: sha512-vvYx3MhWqeZtGPwDStM2dwgljd5smolYD2lR2UyFcHfxbBQebqx8yjmFmxtJ/E6nN6u1D9srOiVWm3Rb4tmcUA==}
 
   '@lezer/lr@1.4.8':
     resolution: {integrity: sha512-bPWa0Pgx69ylNlMlPvBPryqeLYQjyJjqPx+Aupm5zydLIF3NE+6MMLT8Yi23Bd9cif9VS00aUebn+6fDIGBcDA==}
@@ -1362,18 +1371,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright-core@1.59.0-alpha-2026-03-05:
-    resolution: {integrity: sha512-zOHHoo8/MChMq+bebXoXwuD9X8GZihG5LYUPW4lh7qxZnWRMhrL6Yca6nR0TjY9JAU+sCvOc21m7TQ1guuSpiw==}
-    engines: {node: '>=18'}
-    hasBin: true
-
   playwright@1.59.0-alpha-2026-02-21:
     resolution: {integrity: sha512-ZZSHXJwIjJ/LnrY/7EI+3fZskVHETHIq+AKOYcHgVBgcmuiiqHI10nfpgcdy299mJkQB6OBxShcneWh2Qxm/yA==}
-    engines: {node: '>=18'}
-    hasBin: true
-
-  playwright@1.59.0-alpha-2026-03-05:
-    resolution: {integrity: sha512-IhddW4jZeP6W93vxD2Ftzq49ptEYElck9RlB0ol9cGPzocLUzbQDCFrsuASh8jc9uuAlWEtRGeOX3H9sd2gCgA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -1776,6 +1775,16 @@ snapshots:
       '@codemirror/view': 6.39.16
       '@lezer/common': 1.5.1
 
+  '@codemirror/lang-javascript@6.2.5':
+    dependencies:
+      '@codemirror/autocomplete': 6.20.1
+      '@codemirror/language': 6.12.2
+      '@codemirror/lint': 6.9.5
+      '@codemirror/state': 6.5.4
+      '@codemirror/view': 6.39.16
+      '@lezer/common': 1.5.1
+      '@lezer/javascript': 1.5.4
+
   '@codemirror/language@6.12.2':
     dependencies:
       '@codemirror/state': 6.5.4
@@ -1955,6 +1964,12 @@ snapshots:
   '@lezer/highlight@1.2.3':
     dependencies:
       '@lezer/common': 1.5.1
+
+  '@lezer/javascript@1.5.4':
+    dependencies:
+      '@lezer/common': 1.5.1
+      '@lezer/highlight': 1.2.3
+      '@lezer/lr': 1.4.8
 
   '@lezer/lr@1.4.8':
     dependencies:
@@ -2304,20 +2319,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-
-  '@vitest/browser-playwright@4.0.18(playwright@1.59.0-alpha-2026-03-05)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1))(vitest@4.0.18)':
-    dependencies:
-      '@vitest/browser': 4.0.18(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1))(vitest@4.0.18)
-      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1))
-      playwright: 1.59.0-alpha-2026-03-05
-      tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@25.3.3)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.18)(happy-dom@20.8.3)(jiti@2.6.1)(lightningcss@1.31.1)
-    transitivePeerDependencies:
-      - bufferutil
-      - msw
-      - utf-8-validate
-      - vite
-    optional: true
 
   '@vitest/browser@4.0.18(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1))(vitest@4.0.18)':
     dependencies:
@@ -2821,21 +2822,11 @@ snapshots:
 
   playwright-core@1.59.0-alpha-2026-02-21: {}
 
-  playwright-core@1.59.0-alpha-2026-03-05:
-    optional: true
-
   playwright@1.59.0-alpha-2026-02-21:
     dependencies:
       playwright-core: 1.59.0-alpha-2026-02-21
     optionalDependencies:
       fsevents: 2.3.2
-
-  playwright@1.59.0-alpha-2026-03-05:
-    dependencies:
-      playwright-core: 1.59.0-alpha-2026-03-05
-    optionalDependencies:
-      fsevents: 2.3.2
-    optional: true
 
   pngjs@7.0.0: {}
 
@@ -3022,7 +3013,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.3.3
-      '@vitest/browser-playwright': 4.0.18(playwright@1.59.0-alpha-2026-03-05)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1))(vitest@4.0.18)
+      '@vitest/browser-playwright': 4.0.18(playwright@1.59.0-alpha-2026-02-21)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1))(vitest@4.0.18)
       '@vitest/ui': 4.0.18(vitest@4.0.18)
       happy-dom: 20.8.3
     transitivePeerDependencies:

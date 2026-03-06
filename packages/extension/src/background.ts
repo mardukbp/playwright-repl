@@ -296,6 +296,60 @@ async function handlePageEvaluate(msg: { method: string; source: string; isStrin
   }
 }
 
+// ─── SW Eval (CDP on service worker target) ──────────────────────────────────
+
+let swDebuggerTargetId: string | null = null;
+
+chrome.debugger.onDetach.addListener((source) => {
+  if (source.targetId === swDebuggerTargetId) swDebuggerTargetId = null;
+});
+
+function getSwTargetId(): Promise<string | null> {
+  return new Promise(resolve => {
+    chrome.debugger.getTargets(targets => {
+      const sw = targets.find(t => t.type === 'service_worker' && t.extensionId === chrome.runtime.id);
+      resolve(sw?.id ?? null);
+    });
+  });
+}
+
+async function ensureSwAttached(): Promise<string> {
+  const targetId = await getSwTargetId();
+  if (!targetId) throw new Error('Service worker target not found.');
+  if (swDebuggerTargetId === targetId) return targetId;
+  await new Promise<void>((resolve, reject) => {
+    chrome.debugger.attach({ targetId }, '1.3', () => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else { swDebuggerTargetId = targetId; resolve(); }
+    });
+  });
+  return targetId;
+}
+
+async function swEval(expression: string): Promise<unknown> {
+  const targetId = await ensureSwAttached();
+  const isMultiLine = expression.includes('\n');
+  const wrapped = isMultiLine
+    ? `(async () => {\n${expression}\n})()`
+    : `(async () => { return (${expression}) })()`;
+  return new Promise((resolve, reject) => {
+    chrome.debugger.sendCommand(
+      { targetId },
+      'Runtime.evaluate',
+      { expression: wrapped, awaitPromise: true, returnByValue: false, generatePreview: true, objectGroup: 'console' },
+      (result: any) => {
+        if (chrome.runtime.lastError) { swDebuggerTargetId = null; reject(new Error(chrome.runtime.lastError.message)); return; }
+        if (result?.exceptionDetails) {
+          const msg = result.exceptionDetails.exception?.description ?? result.exceptionDetails.text ?? 'Unknown error';
+          reject(new Error(msg));
+          return;
+        }
+        resolve(result);
+      }
+    );
+  });
+}
+
 // ─── CDP Evaluate ────────────────────────────────────────────────────────────
 
 function cdpEvaluate(tabId: number, expression: string): Promise<unknown> {
@@ -344,6 +398,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'cdp-get-properties') {
     if (!activeTabId) { sendResponse({ error: 'Not attached to any tab.' }); return false; }
     cdpGetProperties(activeTabId, msg.objectId).then(sendResponse).catch(e => sendResponse({ error: String(e) }));
+    return true;
+  }
+  if (msg.type === 'sw-eval') {
+    swEval(msg.expression as string).then(sendResponse).catch(e => sendResponse({ error: e.message ?? String(e) }));
     return true;
   }
 });

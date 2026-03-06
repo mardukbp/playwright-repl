@@ -50,7 +50,10 @@ export function useConsole(executors: ConsoleExecutors) {
                 : await executors.js(trimmed);
             updateEntry(id, { status: 'done', value: result.value, text: result.text, image: result.image, getProperties: result.getProperties });
         } catch (e: any) {
-            updateEntry(id, { status: 'error', errorText: e?.message ?? String(e) });
+            const raw = e?.message ?? String(e);
+            // Strip stack trace and verbose "Call log:" section from Playwright assertion errors
+            const errorText = raw.split('\n    at ')[0].split('\nCall log:')[0].trim();
+            updateEntry(id, { status: 'error', errorText });
         }
     }
 

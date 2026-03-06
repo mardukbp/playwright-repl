@@ -120,7 +120,7 @@ function App() {
               if (raw?.error) throw new Error(raw.error);
               if (!raw?.result) throw new Error('No result from service worker');
               const result = raw.result as CdpRemoteObject;
-              if (result.type === 'undefined') return { text: 'undefined' };
+              if (result.type === 'undefined') return { text: 'Done' };
               return { value: fromCdpRemoteObject(result), getProperties: swGetProperties };
             },
             js: async expr => {

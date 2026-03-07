@@ -4,4 +4,5 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60000,
   retries: 0,
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
 });

@@ -2,7 +2,9 @@ import { EditorView, keymap, placeholder, drawSelection } from '@codemirror/view
 import { javascript } from '@codemirror/lang-javascript';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { history, historyKeymap } from '@codemirror/commands';
+import { autocompletion, completionStatus } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
+import { pwCompletion } from '@/lib/pw-completion';
 
 interface Opts {
     onSubmit:    (value: string) => void;
@@ -23,6 +25,7 @@ export function consoleExtensions(opts: Opts): Extension[] {
         {
             key: 'Enter',
             run(view) {
+                if (completionStatus(view.state) === 'active') return false;
                 const value = view.state.doc.toString().trim();
                 if (!value) return true;
                 opts.onSubmit(value);
@@ -70,6 +73,7 @@ export function consoleExtensions(opts: Opts): Extension[] {
 
     return [
         customKeymap,
+        autocompletion({ override: [pwCompletion] }),
         javascript(),
         syntaxHighlighting(defaultHighlightStyle),
         drawSelection(),

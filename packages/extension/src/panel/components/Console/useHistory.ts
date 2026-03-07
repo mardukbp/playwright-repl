@@ -1,38 +1,14 @@
-import { useRef } from 'react';
+import { goUp, goDown } from '../../lib/command-history';
 
 export function useHistory() {
-    const stack = useRef<string[]>([]);
-    const idx = useRef(-1);
-    const draft = useRef('');
-
-    function push(entry: string) {
-        if (entry && entry !== stack.current[0]) {
-            stack.current.unshift(entry);
-        }
-        idx.current = -1;
-        draft.current = '';
-    }
-
-    function goBack(current: string): string | null {
-        if (idx.current === -1) draft.current = current;
-        if (idx.current < stack.current.length - 1) {
-            idx.current++;
-            return stack.current[idx.current];
-        }
-        return null;
+    function goBack(_current: string): string | null {
+        return goUp() ?? null;
     }
 
     function goForward(): string | null {
-        if (idx.current > 0) {
-            idx.current--;
-            return stack.current[idx.current];
-        }
-        if (idx.current === 0) {
-            idx.current = -1;
-            return draft.current;
-        }
-        return null;
+        const v = goDown();
+        return v !== undefined ? v : null;
     }
 
-    return { push, goBack, goForward };
+    return { goBack, goForward };
 }

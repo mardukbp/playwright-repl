@@ -27,7 +27,7 @@ export function ConsoleInput({ onSubmit, onClear, ref }: Props) {
     useEffect(() => {
         const view = new EditorView({
             extensions: consoleExtensions({
-                onSubmit:    (v) => { hist.push(v); submitRef.current(v); },
+                onSubmit:    (v) => { submitRef.current(v); },
                 onClear:     ()  => clearRef.current(),
                 histBack:    (c) => hist.goBack(c),
                 histForward: ()  => hist.goForward(),

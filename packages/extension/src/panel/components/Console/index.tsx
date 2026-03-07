@@ -36,6 +36,12 @@ function outputLinesToEntries(lines: OutputLine[]): ConsoleEntry[] {
         } else if (line.type === 'code-block') {
             entries.push({ id, input: '', status: 'done', codeBlock: line.text });
             i++;
+        } else if (line.type === 'error') {
+            entries.push({ id, input: '', status: 'error', errorText: line.text });
+            i++;
+        } else if (line.type === 'success') {
+            entries.push({ id, input: '', status: 'done', text: line.text });
+            i++;
         } else {
             i++;
         }
@@ -58,6 +64,7 @@ export function Console({ outputLines, className, ref }: Props) {
     function clearAll() {
         setHistoryOffset(allHistorical.length);
         clear();
+        inputRef.current?.clear();
     }
 
     function handleExecute(input: string) {
@@ -73,10 +80,16 @@ export function Console({ outputLines, className, ref }: Props) {
 
     return (
         <div className={`flex flex-col flex-1 min-h-20 overflow-hidden ${className ?? ''}`} data-testid="console-pane">
-            <div className="flex-1 overflow-y-auto py-1 px-2">
+            <div className="flex items-center px-2 py-0.5 border-b border-(--border-primary) bg-(--bg-toolbar) shrink-0">
+                <span className="text-(--text-dim) font-medium">Console</span>
+            </div>
+            <div className="flex items-center gap-1 px-1 py-0.5 border-b border-(--border-primary) shrink-0">
+                <button className="console-clear-btn" onClick={clearAll} title="Clear console (Ctrl+L)">⊘</button>
+            </div>
+            <div className="flex-1 overflow-y-auto py-1 px-2" data-testid="output">
                 <ConsoleOutput entries={[...historicalEntries, ...entries]} />
                 <div className="flex items-start gap-1 py-0.5">
-                    <span className="text-(--color-prompt) shrink-0">&gt;</span>
+                    <span className="text-(--color-prompt) shrink-0" data-testid="prompt">&gt;</span>
                     <ConsoleInput ref={inputRef} onSubmit={handleExecute} onClear={clearAll} />
                 </div>
                 <div ref={bottomRef} />

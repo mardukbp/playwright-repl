@@ -1,61 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from "vitest";
-
-// ─── Mock page-scripts so we can assert which fn was resolved ─────────────────
-
-const verifyVisibleMock = vi.fn();
-const verifyInputValueMock = vi.fn();
-const verifyValueMock = vi.fn();
-const verifyTextMock = vi.fn();
-const verifyElementMock = vi.fn();
-const verifyNoTextMock = vi.fn();
-const verifyNoElementMock = vi.fn();
-const verifyTitleMock = vi.fn();
-const verifyUrlMock = vi.fn();
-const verifyListMock = vi.fn();
-const gotoUrlMock = vi.fn();
-const actionByTextMock = vi.fn();
-const fillByTextMock = vi.fn();
-const takeSnapshotMock = vi.fn();
-
-vi.mock("../../src/page-scripts", () => ({
-  verifyVisible: verifyVisibleMock,
-  verifyInputValue: verifyInputValueMock,
-  verifyValue: verifyValueMock,
-  verifyText: verifyTextMock,
-  verifyElement: verifyElementMock,
-  verifyNoText: verifyNoTextMock,
-  verifyNoElement: verifyNoElementMock,
-  verifyTitle: verifyTitleMock,
-  verifyUrl: verifyUrlMock,
-  verifyList: verifyListMock,
-  gotoUrl: gotoUrlMock,
-  actionByText: actionByTextMock,
-  fillByText: fillByTextMock,
-  takeSnapshot: takeSnapshotMock,
-  selectByText: vi.fn(),
-  checkByText: vi.fn(),
-  uncheckByText: vi.fn(),
-  highlightByText: vi.fn(),
-  highlightBySelector: vi.fn(),
-  chainAction: vi.fn(),
-  goBack: vi.fn(),
-  goForward: vi.fn(),
-  reloadPage: vi.fn(),
-  waitMs: vi.fn(),
-  getTitle: vi.fn(),
-  getUrl: vi.fn(),
-  evalCode: vi.fn(),
-  runCode: vi.fn(),
-  takeScreenshot: vi.fn(),
-  refAction: vi.fn(),
-  pressKey: vi.fn(),
-  typeText: vi.fn(),
-  localStorageGet: vi.fn(), localStorageSet: vi.fn(), localStorageDelete: vi.fn(),
-  localStorageClear: vi.fn(), localStorageList: vi.fn(),
-  sessionStorageGet: vi.fn(), sessionStorageSet: vi.fn(), sessionStorageDelete: vi.fn(),
-  sessionStorageClear: vi.fn(), sessionStorageList: vi.fn(),
-  cookieList: vi.fn(), cookieGet: vi.fn(), cookieClear: vi.fn(),
-}));
+import { describe, it, expect, beforeAll } from "vitest";
 
 let parseReplCommand: (input: string) => any;
 
@@ -66,11 +9,11 @@ beforeAll(async () => {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+/** Assert result has jsExpr and return it. */
 function direct(input: string) {
   const result = parseReplCommand(input);
-  expect(result).toHaveProperty("fn");
-  expect(result).toHaveProperty("fnArgs");
-  return result as { fn: unknown; fnArgs: unknown[] };
+  expect(result).toHaveProperty("jsExpr");
+  return result as { jsExpr: string };
 }
 
 function isError(input: string) {
@@ -83,21 +26,24 @@ function isError(input: string) {
 
 describe("verify-visible", () => {
   it("resolves to verifyVisible with role and name", () => {
-    const { fn, fnArgs } = direct('verify-visible button "Submit"');
-    expect(fn).toBe(verifyVisibleMock);
-    expect(fnArgs).toEqual(["button", "Submit"]);
+    const { jsExpr } = direct('verify-visible button "Submit"');
+    expect(jsExpr).toContain('verifyVisible');
+    expect(jsExpr).toContain('"button"');
+    expect(jsExpr).toContain('"Submit"');
   });
 
   it("resolves multi-word name", () => {
-    const { fn, fnArgs } = direct('verify-visible heading "Getting Started"');
-    expect(fn).toBe(verifyVisibleMock);
-    expect(fnArgs).toEqual(["heading", "Getting Started"]);
+    const { jsExpr } = direct('verify-visible heading "Getting Started"');
+    expect(jsExpr).toContain('verifyVisible');
+    expect(jsExpr).toContain('"heading"');
+    expect(jsExpr).toContain('"Getting Started"');
   });
 
   it("vvis alias resolves to verifyVisible", () => {
-    const { fn, fnArgs } = direct('vvis link "Learn more"');
-    expect(fn).toBe(verifyVisibleMock);
-    expect(fnArgs).toEqual(["link", "Learn more"]);
+    const { jsExpr } = direct('vvis link "Learn more"');
+    expect(jsExpr).toContain('verifyVisible');
+    expect(jsExpr).toContain('"link"');
+    expect(jsExpr).toContain('"Learn more"');
   });
 
   it("returns error when missing name arg", () => {
@@ -113,27 +59,31 @@ describe("verify-visible", () => {
 
 describe("verify-value — label-based", () => {
   it("resolves to verifyInputValue for plain label", () => {
-    const { fn, fnArgs } = direct('verify-value "Email" "user@example.com"');
-    expect(fn).toBe(verifyInputValueMock);
-    expect(fnArgs).toEqual(["Email", "user@example.com"]);
+    const { jsExpr } = direct('verify-value "Email" "user@example.com"');
+    expect(jsExpr).toContain('verifyInputValue');
+    expect(jsExpr).toContain('"Email"');
+    expect(jsExpr).toContain('"user@example.com"');
   });
 
   it("resolves to verifyInputValue for checkbox checked", () => {
-    const { fn, fnArgs } = direct('verify-value "Accept terms" "checked"');
-    expect(fn).toBe(verifyInputValueMock);
-    expect(fnArgs).toEqual(["Accept terms", "checked"]);
+    const { jsExpr } = direct('verify-value "Accept terms" "checked"');
+    expect(jsExpr).toContain('verifyInputValue');
+    expect(jsExpr).toContain('"Accept terms"');
+    expect(jsExpr).toContain('"checked"');
   });
 
   it("resolves to verifyInputValue for checkbox unchecked", () => {
-    const { fn, fnArgs } = direct('verify-value "Newsletter" "unchecked"');
-    expect(fn).toBe(verifyInputValueMock);
-    expect(fnArgs).toEqual(["Newsletter", "unchecked"]);
+    const { jsExpr } = direct('verify-value "Newsletter" "unchecked"');
+    expect(jsExpr).toContain('verifyInputValue');
+    expect(jsExpr).toContain('"Newsletter"');
+    expect(jsExpr).toContain('"unchecked"');
   });
 
   it("resolves to verifyInputValue for radio group", () => {
-    const { fn, fnArgs } = direct('verify-value "Gender" "Female"');
-    expect(fn).toBe(verifyInputValueMock);
-    expect(fnArgs).toEqual(["Gender", "Female"]);
+    const { jsExpr } = direct('verify-value "Gender" "Female"');
+    expect(jsExpr).toContain('verifyInputValue');
+    expect(jsExpr).toContain('"Gender"');
+    expect(jsExpr).toContain('"Female"');
   });
 });
 
@@ -141,15 +91,19 @@ describe("verify-value — label-based", () => {
 
 describe("verify-value — ref-based", () => {
   it("resolves to verifyValue when first arg is a ref", () => {
-    const { fn, fnArgs } = direct('verify-value e5 "hello"');
-    expect(fn).toBe(verifyValueMock);
-    expect(fnArgs).toEqual(["e5", "hello"]);
+    const { jsExpr } = direct('verify-value e5 "hello"');
+    expect(jsExpr).not.toContain('verifyInputValue');
+    expect(jsExpr).toContain('verifyValue');
+    expect(jsExpr).toContain('"e5"');
+    expect(jsExpr).toContain('"hello"');
   });
 
   it("resolves to verifyValue for ref e12", () => {
-    const { fn, fnArgs } = direct('verify-value e12 "world"');
-    expect(fn).toBe(verifyValueMock);
-    expect(fnArgs).toEqual(["e12", "world"]);
+    const { jsExpr } = direct('verify-value e12 "world"');
+    expect(jsExpr).not.toContain('verifyInputValue');
+    expect(jsExpr).toContain('verifyValue');
+    expect(jsExpr).toContain('"e12"');
+    expect(jsExpr).toContain('"world"');
   });
 });
 
@@ -157,40 +111,42 @@ describe("verify-value — ref-based", () => {
 
 describe("verify-visible vs verify-element", () => {
   it("verify-element resolves to verifyElement (count-based)", () => {
-    const { fn } = direct('verify-element button "Submit"');
-    expect(fn).toBe(verifyElementMock);
+    const { jsExpr } = direct('verify-element button "Submit"');
+    expect(jsExpr).toContain('verifyElement');
+    expect(jsExpr).not.toContain('verifyVisible');
   });
 
   it("verify-visible resolves to verifyVisible (isVisible-based)", () => {
-    const { fn } = direct('verify-visible button "Submit"');
-    expect(fn).toBe(verifyVisibleMock);
+    const { jsExpr } = direct('verify-visible button "Submit"');
+    expect(jsExpr).toContain('verifyVisible');
+    expect(jsExpr).not.toContain('verifyElement');
   });
 });
 
-// ─── existing verify commands unaffected ─────────────────────────────────────
+// ─── existing verify commands unaffected ──────────────────────────────────────
 
 describe("existing verify commands", () => {
   it("verify-text resolves to verifyText", () => {
-    const { fn, fnArgs } = direct('verify-text "Hello"');
-    expect(fn).toBe(verifyTextMock);
-    expect(fnArgs).toEqual(["Hello"]);
+    const { jsExpr } = direct('verify-text "Hello"');
+    expect(jsExpr).toContain('verifyText');
+    expect(jsExpr).toContain('"Hello"');
   });
 
   it("verify-no-text resolves to verifyNoText", () => {
-    const { fn, fnArgs } = direct('verify-no-text "Gone"');
-    expect(fn).toBe(verifyNoTextMock);
-    expect(fnArgs).toEqual(["Gone"]);
+    const { jsExpr } = direct('verify-no-text "Gone"');
+    expect(jsExpr).toContain('verifyNoText');
+    expect(jsExpr).toContain('"Gone"');
   });
 
   it("verify text (unified) resolves to verifyText", () => {
-    const { fn, fnArgs } = direct('verify text "Welcome"');
-    expect(fn).toBe(verifyTextMock);
-    expect(fnArgs).toEqual(["Welcome"]);
+    const { jsExpr } = direct('verify text "Welcome"');
+    expect(jsExpr).toContain('verifyText');
+    expect(jsExpr).toContain('"Welcome"');
   });
 
   it("verify-url resolves to verifyUrl", () => {
-    const { fn, fnArgs } = direct('verify-url "dashboard"');
-    expect(fn).toBe(verifyUrlMock);
-    expect(fnArgs).toEqual(["dashboard"]);
+    const { jsExpr } = direct('verify-url "dashboard"');
+    expect(jsExpr).toContain('verifyUrl');
+    expect(jsExpr).toContain('"dashboard"');
   });
 });

@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.10.0 — Console Pane (Chrome DevTools Style)
+
+**2026-03-07**
+
+### Features
+
+- **Console replaces Terminal tab**: The Terminal tab is gone. The Console is now the sole bottom pane — command input flows inline with output, Chrome DevTools style. Commands, results, errors, and code blocks all appear in a single scrollable history. ([#93](https://github.com/stevez/playwright-repl/issues/93), [#105](https://github.com/stevez/playwright-repl/pull/105))
+- **CodeMirror 6 in Console input**: The Console input uses CodeMirror 6 — `.pw` syntax highlighting, command autocomplete with ghost text, and shared command history with the script editor (arrow up/down).
+- **Three execution modes**: Input is auto-routed to the right executor:
+  - `pw` — Playwright keyword commands (`click`, `fill`, `goto`, `snapshot`, …)
+  - `playwright` — Playwright API expressions (`page.title()`, `expect(page.locator('h1')).toBeVisible()`)
+  - `js` — Any other JavaScript, evaluated in the browser page via CDP
+- **CDP object inspection**: `tab-list`, JS expressions, and Playwright API calls return expandable live objects — click arrays and objects to expand nested properties, just like Chrome DevTools.
+- **Console output parity**: Editor runs and recording output render in the Console with full fidelity — accessibility tree snapshots (code block + Copy button), screenshots (lightbox + Save), error messages, success text.
+- **Local Console commands**: `help`, `history`, `history clear`, `clear`, and `# comments` are handled locally — no server round-trip.
+- **Clear button**: ⊘ in the Console header clears both output and the input field. Ctrl+L does the same.
+
+### Removed
+
+- **Aliases removed from extension**: Short aliases (`g`, `s`, `c`, `e`, `tl`, etc.) have been removed from the extension. They remain in the CLI. The Console's `detectMode` cannot reliably identify single-letter aliases — routing them to the wrong executor caused silent failures. Use full command names in the extension.
+- **`run-code` sandbox iframe**: Removed. `run-code` now routes through `swDebugEval` like all Playwright commands.
+
+### Fixes
+
+- **`run-code` return value**: `run-code page.url()` now correctly returns the URL string instead of `"Done"`.
+- **Standalone error lines**: Error `OutputLine`s dispatched by the Toolbar (e.g., recording failures) now render in the Console with `data-type="error"` styling.
+
+---
+
 ## v0.9.0 — run-code Sandbox, Improved Recording & pnpm
 
 **2026-03-05**

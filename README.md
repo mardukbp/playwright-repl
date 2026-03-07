@@ -198,7 +198,9 @@ playwright-repl --connect 9333    # custom port
 
 ## Commands
 
-All commands work in both CLI and extension. In the CLI, type directly at the `pw>` prompt. In the extension, type in the REPL input or use the script editor.
+All commands work in both CLI and extension. In the CLI, type directly at the `pw>` prompt. In the extension, type in the Console or use the script editor.
+
+> **Note:** Short aliases (`g`, `c`, `s`, `e`, etc.) are CLI-only. The extension uses full command names (`goto`, `click`, `snapshot`, `eval`, …).
 
 ### Navigation
 
@@ -428,9 +430,9 @@ The extension opens as a Chrome **side panel** by default. To switch to a standa
 
 The panel UI is the same in both modes:
 
-- **REPL input** — type commands at the bottom, results appear in the console pane
+- **Console** — Chrome DevTools-style REPL: type a command, result appears inline. Supports `.pw` syntax highlighting, autocomplete, command history, CDP object inspection, screenshots, and code block output.
 - **Script editor** — write multi-line `.pw` scripts with line numbers, run all or step through
-- **Visual recorder** — click Record, interact with the page, recorded commands appear automatically
+- **Visual recorder** — click Record, interact with the page, recorded commands appear in the script editor automatically
 - **Export** — convert `.pw` commands to Playwright TypeScript test code
 - **Tab switcher** — toolbar dropdown lets you re-attach the panel to any open browser tab without reopening
 - **Light/dark themes** — matches your DevTools theme
@@ -532,7 +534,7 @@ packages/
     │   │   ├── App.tsx           # Root component (auto-attach, tab listener)
     │   │   ├── reducer.ts        # useReducer state management
     │   │   ├── types.ts          # TypeScript types
-    │   │   ├── components/       # Toolbar, CommandInput, EditorPane, ConsolePane, etc.
+    │   │   ├── components/       # Toolbar, EditorPane, Console, etc.
     │   │   └── lib/              # bridge, run, commands, autocomplete, command-history, etc.
     └── public/
         └── manifest.json         # Manifest V3 config (requires "debugger" permission)

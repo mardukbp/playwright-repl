@@ -1,4 +1,7 @@
 export type CommandResult = { text: string; isError: boolean; image?: string };
+export type { CdpRemoteObject } from '../components/Console/cdpToSerialized';
+import type { CdpRemoteObject } from '../components/Console/cdpToSerialized';
+export type ConsoleCommandResult = { cdpResult: CdpRemoteObject } | { text: string; image?: string };
 
 export async function cdpEvaluate(expression: string): Promise<unknown> {
   return chrome.runtime.sendMessage({ type: 'cdp-evaluate', expression });
@@ -50,6 +53,51 @@ export async function executeCommand(command: string): Promise<CommandResult> {
   } catch (e: any) {
     return { text: e?.message ?? String(e), isError: true };
   }
+}
+
+/**
+ * Like executeCommand but preserves the raw CDP result for object/array types.
+ * Used by the Console's pw executor to render expandable ObjectTree entries.
+ */
+export async function executeCommandForConsole(command: string): Promise<ConsoleCommandResult> {
+  const { parseReplCommand } = await import('../../commands');
+  const parsed = parseReplCommand(command);
+
+  if ('error' in parsed) throw new Error(parsed.error);
+  if ('help' in parsed) return { text: parsed.help };
+
+  const { swDebugEval } = await import('@/lib/sw-debugger');
+  const { jsExpr } = parsed;
+
+  let timer: ReturnType<typeof setTimeout>;
+  const withTimeout = <T>(p: Promise<T>): Promise<T> =>
+    Promise.race([
+      p,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Command timed out after 15s')), 15000);
+      }),
+    ]).finally(() => clearTimeout(timer!));
+
+  const raw = await withTimeout(swDebugEval(jsExpr)) as { result?: CdpRemoteObject };
+  const r = raw?.result;
+
+  if (!r || r.type === 'undefined') return { text: 'Done' };
+
+  if (r.type === 'string') {
+    const val = r.value as string;
+    try {
+      const obj = JSON.parse(val);
+      if (obj && typeof obj === 'object' && '__image' in obj) {
+        return { text: '', image: `data:${(obj as any).mimeType};base64,${(obj as any).__image}` };
+      }
+    } catch { /* not JSON — treat as plain text */ }
+    return { text: val };
+  }
+
+  if (r.type === 'number' || r.type === 'boolean') return { text: String(r.value) };
+
+  // object, array, function — return raw CDP result so Console can render ObjectTree
+  return { cdpResult: r };
 }
 
 export async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; error?: string }> {

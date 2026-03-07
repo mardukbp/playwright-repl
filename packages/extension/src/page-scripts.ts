@@ -391,12 +391,12 @@ export async function tabList(_page) {
   const activeTabId = globalThis.activeTabId;
   const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
   const tabs = await chrome.tabs.query(windowId !== undefined ? { windowId } : {});
-  if (!tabs.length) return 'No open tabs.';
-  const lines = tabs.map((tab, i) => {
-    const current = tab.id === activeTabId ? ' (current)' : '';
-    return '- ' + i + ':' + current + ' [' + (tab.title || '') + '](' + (tab.url || '') + ')';
-  });
-  return lines.join('\n');
+  return tabs.map((tab, i) => ({
+    index: i,
+    title: tab.title || '',
+    url: tab.url || '',
+    current: tab.id === activeTabId,
+  }));
 }
 
 export async function tabNew(_page, url) {

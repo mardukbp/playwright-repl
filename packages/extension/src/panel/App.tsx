@@ -6,10 +6,8 @@ import TerminalPane from './components/TerminalPane'
 import CommandInput, { CommandInputHandle } from './components/CommandInput'
 import { panelReducer, initialState } from './reducer'
 import { runAndDispatch } from './lib/run'
-import { attachToTab, cdpEvaluate, executeCommandForConsole } from './lib/bridge'
-import { swDebugEval, swGetProperties } from './lib/sw-debugger'
+import { attachToTab } from './lib/bridge'
 import { Console, type ConsoleHandle } from './components/Console';
-import { fromCdpRemoteObject, type CdpRemoteObject } from './components/Console/cdpToSerialized';
 
 function App() {
   const [state, dispatch] = useReducer(panelReducer, initialState)
@@ -112,32 +110,7 @@ function App() {
           <CommandInput ref={cmdInputRef} onSubmit={handleSubmit} />
         </>
       ) : (
-        <Console
-          ref={consoleRef}
-          executors={{
-            playwright: async expr => {
-              const raw = await swDebugEval(expr) as { result?: CdpRemoteObject; error?: string };
-              if (raw?.error) throw new Error(raw.error);
-              if (!raw?.result) throw new Error('No result from service worker');
-              const result = raw.result as CdpRemoteObject;
-              if (result.type === 'undefined') return { text: 'Done' };
-              return { value: fromCdpRemoteObject(result), getProperties: swGetProperties };
-            },
-            js: async expr => {
-              const raw = await cdpEvaluate(expr) as { result?: CdpRemoteObject; error?: string };
-              if (raw?.error) throw new Error(raw.error);
-              if (!raw?.result) throw new Error('No result');
-              return { value: fromCdpRemoteObject(raw.result) };
-            },
-            pw: async command => {
-              const result = await executeCommandForConsole(command);
-              if ('cdpResult' in result) {
-                return { value: fromCdpRemoteObject(result.cdpResult), getProperties: swGetProperties };
-              }
-              return { text: result.text || 'Done', image: result.image };
-            },
-          }}
-        />
+        <Console ref={consoleRef} outputLines={state.outputLines} />
       )}
     </>
   )

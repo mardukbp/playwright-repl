@@ -46,7 +46,7 @@ function TerminalPane({ outputLines }: TerminalPaneProps) {
                     </div>);
             case 'screenshot':
                 return (
-                    <div key={i} className="relative inline-block my-[6px] mx-0 group">
+                    <div key={i} data-type="screenshot" className="relative inline-block my-[6px] mx-0 group">
                         <img src={line.image} className='max-w-100 border border-solid border-(--border-screenshot) rounded-t-[4px] block cursor-zoom-in group-hover:opacity-85' onClick={() => openLightbox(line.image)} />
                         <span className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 bg-black/60 text-white text-[11px] py-1 px-[10px] rounded-[4px] pointer-events-none opacity-0 transition-opacity duration-150 group-hover:opacity-100">Click to enlarge</span>
                         <div className="flex justify-end py-1 px-1.5 bg-(--bg-toolbar) border border-solid border-(--border-screenshot) border-t-0 rounded-b-[4px]">

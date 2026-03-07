@@ -9,7 +9,47 @@ export async function cdpGetProperties(objectId: string): Promise<unknown> {
 }
 
 export async function executeCommand(command: string): Promise<CommandResult> {
-  return chrome.runtime.sendMessage({ type: 'run', command });
+  const { parseReplCommand } = await import('../../commands');
+  const parsed = parseReplCommand(command);
+
+  if ('error' in parsed) return { text: parsed.error, isError: true };
+  if ('help' in parsed) return { text: parsed.help, isError: false };
+
+  // DirectExecution — run the generated JS in the SW context where `page` is a live global
+  const { swDebugEval } = await import('@/lib/sw-debugger');
+  const { jsExpr } = parsed;
+
+  let timer: ReturnType<typeof setTimeout>;
+  const withTimeout = <T>(p: Promise<T>): Promise<T> =>
+    Promise.race([
+      p,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Command timed out after 15s')), 15000);
+      }),
+    ]).finally(() => clearTimeout(timer!));
+
+  try {
+    const raw = await withTimeout(swDebugEval(jsExpr)) as { result?: { type?: string; value?: unknown; description?: string } };
+    const r = raw?.result;
+
+    if (!r || r.type === 'undefined') return { text: 'Done', isError: false };
+
+    if (r.type === 'string') {
+      const val = r.value as string;
+      // Screenshot result is JSON-encoded { __image, mimeType }
+      try {
+        const obj = JSON.parse(val);
+        if (obj && typeof obj === 'object' && '__image' in obj) {
+          return { text: '', image: `data:${obj.mimeType};base64,${obj.__image}`, isError: false };
+        }
+      } catch { /* not JSON — treat as plain text */ }
+      return { text: val, isError: false };
+    }
+
+    return { text: (r.description as string) ?? 'Done', isError: false };
+  } catch (e: any) {
+    return { text: e?.message ?? String(e), isError: true };
+  }
 }
 
 export async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; error?: string }> {

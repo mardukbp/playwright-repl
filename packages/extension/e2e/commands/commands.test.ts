@@ -40,19 +40,19 @@ function findRef(snapshotText: string, labelPattern: string): string {
 }
 
 /**
- * Count tabs in tab-list output. Format: "[tabId] title — url"
+ * Count tabs in tab-list output. Format: "- 0: [title](url)"
  */
 function countTabs(tabListText: string): number {
-  return (tabListText.match(/\[\d+\]/g) ?? []).length;
+  return (tabListText.match(/^- \d+:/gm) ?? []).length;
 }
 
 /**
- * Extract the tab ID for a tab whose line contains the given URL substring.
+ * Extract the tab index for a tab whose line contains the given URL substring.
  */
-function findTabId(tabListText: string, urlSubstring: string): number | null {
+function findTabIndex(tabListText: string, urlSubstring: string): number | null {
   const line = tabListText.split('\n').find(l => l.includes(urlSubstring));
   if (!line) return null;
-  const m = line.match(/\[(\d+)\]/);
+  const m = line.match(/^- (\d+):/);
   return m ? parseInt(m[1]) : null;
 }
 
@@ -334,15 +334,15 @@ test.describe('Tab commands', () => {
     expect(countTabs(after.text)).toBe(tabsBefore + 1);
   });
 
-  test('tab-select switches to a tab by id', async ({ testPage: _, panelPage }) => {
+  test('tab-select switches to a tab by index', async ({ testPage: _, panelPage }) => {
     await sendCommand(panelPage, `goto ${TEST_URL}`);
     await sendCommand(panelPage, 'tab-new');
 
     const list = await sendCommand(panelPage, 'tab-list');
-    const tabId = findTabId(list.text, 'demo.playwright.dev');
-    expect(tabId).not.toBeNull();
+    const tabIndex = findTabIndex(list.text, 'demo.playwright.dev');
+    expect(tabIndex).not.toBeNull();
 
-    const result = await sendCommand(panelPage, `tab-select ${tabId}`);
+    const result = await sendCommand(panelPage, `tab-select ${tabIndex}`);
     expect(result.isError).toBeFalsy();
   });
 
@@ -352,9 +352,9 @@ test.describe('Tab commands', () => {
     const before = await sendCommand(panelPage, 'tab-list');
     const tabsBefore = countTabs(before.text);
 
-    const blankId = findTabId(before.text, 'about:blank');
-    if (blankId) {
-      const result = await sendCommand(panelPage, `tab-close ${blankId}`);
+    const blankIndex = findTabIndex(before.text, 'about:blank');
+    if (blankIndex !== null) {
+      const result = await sendCommand(panelPage, `tab-close ${blankIndex}`);
       expect(result.isError).toBeFalsy();
     }
 

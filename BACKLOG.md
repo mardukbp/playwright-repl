@@ -9,6 +9,12 @@
 - [x] **Auto-inject `expect` in `run-code`** — Implemented via sandbox iframe + `__expect__` chain protocol. `expect(page.locator(...)).toBeVisible()` and `expect(page).toHaveTitle(...)` work. `.not` negation is not yet supported (see Medium Priority).
 - [ ] **`expect().not` negation in `run-code`** — `expect(locator).not.toBeVisible()` is broken: `.not` is treated as a matcher name. Fix: detect `.not` in `createExpect()` in `sandbox.html` (return a proxy that sets a `negated` flag), pass `negated` as part of `__expect__` args, and call `expect(target).not[matcher]()` in `background.ts`.
 
+## Architecture
+
+- [ ] **Route `executeCommand` through `swDebugEval` instead of `sendMessage`** — Currently `bridge.ts:executeCommand` sends `chrome.runtime.sendMessage({ type: 'run', command })` to background.ts which parses and executes the command. Instead: expose `handleCommand` on `globalThis` in background.ts, then call it directly via CDP: `swDebugEval('JSON.stringify(await handleCommand(...))'))`. Eliminates the `chrome.runtime.sendMessage` round-trip for command execution. All existing parsing, aliases, ref locators, and tab ops preserved — only the transport changes. Tab ops still work since they run inside the SW context. `bridge.ts:executeCommand` signature stays unchanged so nothing else breaks.
+
+- [ ] **WebSocket CLI bridge** — Allow an external terminal REPL to drive the extension without `--remote-debugging-port`. CLI opens a WebSocket server (e.g. `:9876`); extension background.js connects out to it. CLI sends expression strings; extension calls `swDebugEval()` and replies with results. Background.js becomes lifecycle-only (attach, recorder, tab ops, keep-alive); all execution goes through `swDebugEval`. No special Chrome launch flags needed — user installs extension and runs `playwright-repl --bridge`. Requires `connect-src ws://localhost:*` in manifest CSP.
+
 ## Big Ideas
 
 - [ ] **Script test runner** — "Run all" button executes the full editor script as a test suite. Each top-level `await` statement runs sequentially; `expect()` results are streamed back line-by-line with pass/fail status. CM6 gutter decorations show green/red per line. No external framework needed — the sandbox + `run-code` infrastructure already executes arbitrary JS; the new piece is splitting the script into statements and collecting per-statement results.

@@ -1,10 +1,10 @@
 /**
- * Command parser — transforms human input into executable commands.
+ * Command parser — transforms human input into executable JavaScript expressions.
  *
  * Pipeline: tokenize → alias → resolveArgs → DirectExecution or TabOperation
  *
  * resolveArgs returns either:
- *   - DirectExecution { fn, fnArgs } — called directly with the Playwright page object
+ *   - DirectExecution { jsExpr } — a JS string for swDebugEval (runs in SW where `page` is global)
  *   - TabOperation { tabOp, tabArgs } — handled by background.ts via chrome.tabs APIs
  */
 
@@ -20,6 +20,7 @@ import {
   localStorageGet, localStorageSet, localStorageDelete, localStorageClear, localStorageList,
   sessionStorageGet, sessionStorageSet, sessionStorageDelete, sessionStorageClear, sessionStorageList,
   cookieList, cookieGet, cookieClear,
+  tabList, tabNew, tabClose,
 } from './page-scripts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -31,25 +32,29 @@ export interface ParsedArgs {
 }
 
 export interface DirectExecution {
-  fn: (...args: any[]) => Promise<any>;
-  fnArgs: unknown[];
-}
-
-export interface TabOperation {
-  tabOp: string;
-  tabArgs: Record<string, unknown>;
+  jsExpr: string;
 }
 
 export type ParseResult =
   | DirectExecution
-  | TabOperation
   | { help: string }
   | { error: string };
 
-type PageScriptFn = (...args: any[]) => Promise<any>;
+function isDirect(result: ParsedArgs | DirectExecution): result is DirectExecution {
+  return 'jsExpr' in result;
+}
 
-function isDirect(result: ParsedArgs | DirectExecution | TabOperation): result is DirectExecution {
-  return 'fn' in result && typeof (result as DirectExecution).fn === 'function';
+// ─── JS expression helpers ──────────────────────────────────────────────────
+
+/** Serialize a value for inline JS — undefined becomes the literal `undefined` */
+function ser(v: unknown): string {
+  if (v === undefined) return 'undefined';
+  return JSON.stringify(v);
+}
+
+/** Build a JS expression that calls a page-script function in the SW context (where `page` is global) */
+function call(fn: any, ...args: unknown[]): string {
+  return `return await (${fn.toString()})(page, ${args.map(ser).join(', ')})`;
 }
 
 // ─── Command aliases ────────────────────────────────────────────────────────
@@ -193,10 +198,10 @@ function parseInput(line: string): ParsedArgs | null {
 // ─── Resolve Args ────────────────────────────────────────────────────────────
 
 /**
- * Map parsed args to DirectExecution or TabOperation.
+ * Map parsed args to DirectExecution (jsExpr) or TabOperation.
  * Returns null if no mapping found (→ error).
  */
-function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution | TabOperation {
+function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution {
   const cmdName = args._[0];
 
   // ── Verify unified ──────────────────────────────────────────
@@ -204,52 +209,52 @@ function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution | TabOperat
     const subType = args._[1];
     const rest = args._.slice(2);
     if (subType === 'title' && rest.length > 0)
-      return { fn: verifyTitle as PageScriptFn, fnArgs: [rest.join(' ')] };
+      return { jsExpr: call(verifyTitle, rest.join(' ')) };
     if (subType === 'url' && rest.length > 0)
-      return { fn: verifyUrl as PageScriptFn, fnArgs: [rest.join(' ')] };
+      return { jsExpr: call(verifyUrl, rest.join(' ')) };
     if (subType === 'text' && rest.length > 0)
-      return { fn: verifyText as PageScriptFn, fnArgs: [rest.join(' ')] };
+      return { jsExpr: call(verifyText, rest.join(' ')) };
     if (subType === 'no-text' && rest.length > 0)
-      return { fn: verifyNoText as PageScriptFn, fnArgs: [rest.join(' ')] };
+      return { jsExpr: call(verifyNoText, rest.join(' ')) };
     if (subType === 'element' && rest.length >= 2)
-      return { fn: verifyElement as PageScriptFn, fnArgs: [rest[0], rest.slice(1).join(' ')] };
+      return { jsExpr: call(verifyElement, rest[0], rest.slice(1).join(' ')) };
     if (subType === 'no-element' && rest.length >= 2)
-      return { fn: verifyNoElement as PageScriptFn, fnArgs: [rest[0], rest.slice(1).join(' ')] };
+      return { jsExpr: call(verifyNoElement, rest[0], rest.slice(1).join(' ')) };
     if (subType === 'value' && rest.length >= 2)
-      return { fn: verifyValue as PageScriptFn, fnArgs: [rest[0], rest.slice(1).join(' ')] };
+      return { jsExpr: call(verifyValue, rest[0], rest.slice(1).join(' ')) };
     if (subType === 'list' && rest.length >= 2)
-      return { fn: verifyList as PageScriptFn, fnArgs: [rest[0], rest.slice(1)] };
+      return { jsExpr: call(verifyList, rest[0], rest.slice(1)) };
   }
 
   // ── Legacy verify-* commands ────────────────────────────────
   const TEXT_VERIFY_CMDS = new Set(['verify-text', 'verify-no-text', 'verify-title', 'verify-url']);
   const ELEMENT_VERIFY_CMDS = new Set(['verify-element', 'verify-no-element', 'verify-visible']);
-  const verifyFns: Record<string, PageScriptFn> = {
-    'verify-text': verifyText as PageScriptFn,
-    'verify-element': verifyElement as PageScriptFn,
-    'verify-visible': verifyVisible as PageScriptFn,
-    'verify-value': verifyValue as PageScriptFn,
-    'verify-list': verifyList as PageScriptFn,
-    'verify-title': verifyTitle as PageScriptFn,
-    'verify-url': verifyUrl as PageScriptFn,
-    'verify-no-text': verifyNoText as PageScriptFn,
-    'verify-no-element': verifyNoElement as PageScriptFn,
+  const verifyFns: Record<string, any> = {
+    'verify-text': verifyText,
+    'verify-element': verifyElement,
+    'verify-visible': verifyVisible,
+    'verify-value': verifyValue,
+    'verify-list': verifyList,
+    'verify-title': verifyTitle,
+    'verify-url': verifyUrl,
+    'verify-no-text': verifyNoText,
+    'verify-no-element': verifyNoElement,
   };
   if (verifyFns[cmdName]) {
     const pos = args._.slice(1);
     const fn = verifyFns[cmdName];
     if (TEXT_VERIFY_CMDS.has(cmdName)) {
       const text = pos.join(' ');
-      if (text) return { fn, fnArgs: [text] };
+      if (text) return { jsExpr: call(fn, text) };
     } else if (ELEMENT_VERIFY_CMDS.has(cmdName)) {
-      if (pos[0] && pos.length >= 2) return { fn, fnArgs: [pos[0], pos.slice(1).join(' ')] };
+      if (pos[0] && pos.length >= 2) return { jsExpr: call(fn, pos[0], pos.slice(1).join(' ')) };
     } else if (cmdName === 'verify-value' && pos[0] && pos.length >= 2) {
       const isRef = /^e\d+$/.test(pos[0]);
-      const valueFn = isRef ? (verifyValue as PageScriptFn) : (verifyInputValue as PageScriptFn);
-      return { fn: valueFn, fnArgs: [pos[0], pos.slice(1).join(' ')] };
+      const valueFn = isRef ? verifyValue : verifyInputValue;
+      return { jsExpr: call(valueFn, pos[0], pos.slice(1).join(' ')) };
     } else if (pos[0] && pos.length >= 2) {
       const rest = cmdName === 'verify-list' ? pos.slice(1) : pos.slice(1).join(' ');
-      return { fn, fnArgs: [pos[0], rest] };
+      return { jsExpr: call(fn, pos[0], rest) };
     }
   }
 
@@ -257,45 +262,47 @@ function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution | TabOperat
   if (cmdName === 'goto' || cmdName === 'open') {
     const url = args._[1];
     if (!url) return args; // let error bubble
-    return { fn: gotoUrl as PageScriptFn, fnArgs: [url] };
+    return { jsExpr: call(gotoUrl, url) };
   }
   if (cmdName === 'reload')
-    return { fn: reloadPage as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(reloadPage) };
   if (cmdName === 'go-back')
-    return { fn: goBack as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(goBack) };
   if (cmdName === 'go-forward')
-    return { fn: goForward as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(goForward) };
 
   // ── Page info ───────────────────────────────────────────────
   if (cmdName === 'title')
-    return { fn: getTitle as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(getTitle) };
   if (cmdName === 'url')
-    return { fn: getUrl as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(getUrl) };
 
   // ── Wait ────────────────────────────────────────────────────
   if (cmdName === 'wait') {
     const ms = parseInt(args._[1]) || 1000;
-    return { fn: waitMs as PageScriptFn, fnArgs: [ms] };
+    return { jsExpr: call(waitMs, ms) };
   }
 
   // ── Eval ────────────────────────────────────────────────────
   if (cmdName === 'eval') {
     const code = args._[1] || '';
-    return { fn: evalCode as PageScriptFn, fnArgs: [code] };
+    return { jsExpr: call(evalCode, code) };
   }
 
+  // ── Run code (normally intercepted by run.ts before reaching executeCommand) ──
   if (cmdName === 'run-code') {
     const code = args._[1] || '';
-    return { fn: runCode as PageScriptFn, fnArgs: [code] };
+    return { jsExpr: call(runCode, code) };
   }
 
   // ── Screenshot ──────────────────────────────────────────────
+  // Wrapped in JSON.stringify so bridge.ts can detect the __image result
   if (cmdName === 'screenshot')
-    return { fn: takeScreenshot as PageScriptFn, fnArgs: [!!(args.fullPage)] };
+    return { jsExpr: `return JSON.stringify(await (${takeScreenshot.toString()})(page, ${!!(args.fullPage)}))` };
 
   // ── Snapshot ────────────────────────────────────────────────
   if (cmdName === 'snapshot')
-    return { fn: takeSnapshot as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(takeSnapshot) };
 
   // ── Highlight ───────────────────────────────────────────────
   if (cmdName === 'highlight') {
@@ -303,8 +310,8 @@ function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution | TabOperat
     if (loc) {
       const isSelector = /[.#[\]>:=]/.test(loc);
       return isSelector
-        ? { fn: highlightBySelector as PageScriptFn, fnArgs: [loc] }
-        : { fn: highlightByText as PageScriptFn, fnArgs: [loc] };
+        ? { jsExpr: call(highlightBySelector, loc) }
+        : { jsExpr: call(highlightByText, loc) };
     }
   }
 
@@ -328,25 +335,25 @@ function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution | TabOperat
     const selector = positional.slice(0, selectorEnd + 1).join(' ');
     const rest = positional.slice(selectorEnd + 1).join(' ');
 
-    return { fn: chainAction as PageScriptFn, fnArgs: [selector, action, rest || undefined] };
+    return { jsExpr: call(chainAction, selector, action, rest || undefined) };
   }
 
   // ── Text locators ───────────────────────────────────────────
-  const textFns: Record<string, PageScriptFn> = {
-    click: actionByText as PageScriptFn, dblclick: actionByText as PageScriptFn, hover: actionByText as PageScriptFn,
-    fill: fillByText as PageScriptFn, select: selectByText as PageScriptFn,
-    check: checkByText as PageScriptFn, uncheck: uncheckByText as PageScriptFn,
+  const textFns: Record<string, any> = {
+    click: actionByText, dblclick: actionByText, hover: actionByText,
+    fill: fillByText, select: selectByText,
+    check: checkByText, uncheck: uncheckByText,
   };
   if (textFns[cmdName] && args._[1] && !/^e\d+$/.test(args._[1]) && !args._.some(a => a.includes('>>'))) {
     const textArg = args._[1];
     const extraArgs = args._.slice(2);
     const fn = textFns[cmdName];
     const nth = args.nth !== undefined ? parseInt(String(args.nth), 10) : undefined;
-    if (fn === (actionByText as PageScriptFn))
-      return { fn, fnArgs: [textArg, cmdName, nth] };
+    if (fn === actionByText)
+      return { jsExpr: call(fn, textArg, cmdName, nth) };
     if (cmdName === 'fill' || cmdName === 'select')
-      return { fn, fnArgs: [textArg, extraArgs[0] || '', nth] };
-    return { fn, fnArgs: [textArg, nth] };
+      return { jsExpr: call(fn, textArg, extraArgs[0] || '', nth) };
+    return { jsExpr: call(fn, textArg, nth) };
   }
 
   // ── Ref-based actions (e5, e7, ...) ─────────────────────────
@@ -359,69 +366,73 @@ function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution | TabOperat
     const ref = args._[1];
     const action = REF_ACTIONS[cmdName];
     const value = args._.slice(2).join(' ') || undefined;
-    return { fn: refAction as PageScriptFn, fnArgs: [ref, action, value] };
+    return { jsExpr: call(refAction, ref, action, value) };
   }
 
   // ── Press ───────────────────────────────────────────────────
   if (cmdName === 'press') {
     const pos = args._.slice(1);
     if (pos.length === 1) {
-      // press <key> — global keyboard press
-      return { fn: pressKey as PageScriptFn, fnArgs: [pos[0], pos[0]] };
+      return { jsExpr: call(pressKey, pos[0], pos[0]) };
     }
     if (pos.length >= 2) {
-      // press <target> <key>
-      return { fn: pressKey as PageScriptFn, fnArgs: [pos[0], pos[1]] };
+      return { jsExpr: call(pressKey, pos[0], pos[1]) };
     }
   }
 
   // ── Type ────────────────────────────────────────────────────
   if (cmdName === 'type') {
     const text = args._.slice(1).join(' ');
-    if (text) return { fn: typeText as PageScriptFn, fnArgs: [text] };
+    if (text) return { jsExpr: call(typeText, text) };
   }
 
   // ── localStorage ────────────────────────────────────────────
   if (cmdName === 'localstorage-get')
-    return { fn: localStorageGet as PageScriptFn, fnArgs: [args._[1]] };
+    return { jsExpr: call(localStorageGet, args._[1]) };
   if (cmdName === 'localstorage-set')
-    return { fn: localStorageSet as PageScriptFn, fnArgs: [args._[1], args._.slice(2).join(' ')] };
+    return { jsExpr: call(localStorageSet, args._[1], args._.slice(2).join(' ')) };
   if (cmdName === 'localstorage-delete')
-    return { fn: localStorageDelete as PageScriptFn, fnArgs: [args._[1]] };
+    return { jsExpr: call(localStorageDelete, args._[1]) };
   if (cmdName === 'localstorage-clear')
-    return { fn: localStorageClear as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(localStorageClear) };
   if (cmdName === 'localstorage-list')
-    return { fn: localStorageList as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(localStorageList) };
 
   // ── sessionStorage ──────────────────────────────────────────
   if (cmdName === 'sessionstorage-get')
-    return { fn: sessionStorageGet as PageScriptFn, fnArgs: [args._[1]] };
+    return { jsExpr: call(sessionStorageGet, args._[1]) };
   if (cmdName === 'sessionstorage-set')
-    return { fn: sessionStorageSet as PageScriptFn, fnArgs: [args._[1], args._.slice(2).join(' ')] };
+    return { jsExpr: call(sessionStorageSet, args._[1], args._.slice(2).join(' ')) };
   if (cmdName === 'sessionstorage-delete')
-    return { fn: sessionStorageDelete as PageScriptFn, fnArgs: [args._[1]] };
+    return { jsExpr: call(sessionStorageDelete, args._[1]) };
   if (cmdName === 'sessionstorage-clear')
-    return { fn: sessionStorageClear as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(sessionStorageClear) };
   if (cmdName === 'sessionstorage-list')
-    return { fn: sessionStorageList as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(sessionStorageList) };
 
   // ── Cookies ─────────────────────────────────────────────────
   if (cmdName === 'cookie-list')
-    return { fn: cookieList as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(cookieList) };
   if (cmdName === 'cookie-get')
-    return { fn: cookieGet as PageScriptFn, fnArgs: [args._[1]] };
+    return { jsExpr: call(cookieGet, args._[1]) };
   if (cmdName === 'cookie-clear')
-    return { fn: cookieClear as PageScriptFn, fnArgs: [] };
+    return { jsExpr: call(cookieClear) };
 
   // ── Tabs ────────────────────────────────────────────────────
   if (cmdName === 'tab-list')
-    return { tabOp: 'list', tabArgs: {} };
+    return { jsExpr: call(tabList) };
   if (cmdName === 'tab-new')
-    return { tabOp: 'new', tabArgs: { url: args._[1] } };
-  if (cmdName === 'tab-close')
-    return { tabOp: 'close', tabArgs: { tabId: args._[1] ? parseInt(args._[1]) : undefined } };
-  if (cmdName === 'tab-select')
-    return { tabOp: 'select', tabArgs: { tabId: args._[1] ? parseInt(args._[1]) : undefined } };
+    return { jsExpr: call(tabNew, args._[1]) };
+  if (cmdName === 'tab-close') {
+    const idx = args._[1] ? parseInt(args._[1]) : undefined;
+    return { jsExpr: call(tabClose, idx) };
+  }
+  if (cmdName === 'tab-select') {
+    const idx = args._[1] ? parseInt(args._[1]) : NaN;
+    if (isNaN(idx)) return args; // let error bubble
+    // Raw jsExpr: must update globalThis.page so subsequent commands target the new tab
+    return { jsExpr: `const _ctx = globalThis.context; if (!_ctx) throw new Error('No browser context. Click Attach first.'); const _p = _ctx.pages()[${idx}]; if (!_p) throw new Error('Tab ${idx} not found'); await _p.bringToFront(); globalThis.page = _p; return 'Selected tab ${idx}: ' + _p.url();` };
+  }
 
   return args;
 }
@@ -441,9 +452,6 @@ export function parseReplCommand(input: string): ParseResult {
 
   // DirectExecution
   if (isDirect(resolved)) return resolved;
-
-  // TabOperation
-  if ('tabOp' in resolved) return resolved as TabOperation;
 
   // Unknown command
   const cmdName = args._[0];

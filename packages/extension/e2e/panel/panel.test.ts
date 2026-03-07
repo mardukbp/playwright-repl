@@ -32,14 +32,11 @@ test('has prompt visible', async ({ panelPage }) => {
 
 // ─── REPL Command Input ────────────────────────────────────────────────────
 
-test('displays success response after command', async ({ panelPage, mockResponse }) => {
-  mockResponse({ text: '### Result\nNavigated to https://example.com', isError: false });
-
-  await fillInput(panelPage, 'goto https://example.com');
-  await panelPage.keyboard.press('Escape');  // close autocomplete
+test('displays output after command', async ({ panelPage }) => {
+  await fillInput(panelPage, 'help');
   await panelPage.keyboard.press('Enter');
 
-  await expect(panelPage.getByTestId('output')).toContainText('Navigated');
+  await expect(panelPage.getByTestId('output')).toContainText('Available commands', { timeout: 5000 });
 });
 
 test('clears input after submit', async ({ panelPage }) => {
@@ -57,14 +54,12 @@ test('does not send empty input', async ({ panelPage }) => {
   await expect(panelPage.locator('[data-type="command"]')).toHaveCount(0);
 });
 
-test('displays error responses with error styling', async ({ panelPage, mockResponse }) => {
-  mockResponse({ text: '### Error\nElement not found', isError: true });
-
-  await fillInput(panelPage, 'click missing');
+test('displays error responses with error styling', async ({ panelPage }) => {
+  await fillInput(panelPage, 'nonexistent-command');
   await panelPage.keyboard.press('Escape');
   await panelPage.keyboard.press('Enter');
 
-  await expect(panelPage.locator('[data-type="error"]')).toContainText('Element not found');
+  await expect(panelPage.locator('[data-type="error"]')).toContainText('Unknown command');
 });
 
 // ─── Command History ───────────────────────────────────────────────────────
@@ -138,9 +133,7 @@ test('executes all editor lines and shows Run complete', async ({ panelPage }) =
   await expect(panelPage.getByTestId('output')).toContainText('Run complete', { timeout: 15000 });
 });
 
-test('shows fail stats when command errors', async ({ panelPage, mockResponse }) => {
-  mockResponse({ text: '### Error\nFailed', isError: true });
-
+test('shows fail stats when command errors', async ({ panelPage }) => {
   await fillEditor(panelPage, 'click missing');
 
   await panelPage.getByTestId('run-btn').click();

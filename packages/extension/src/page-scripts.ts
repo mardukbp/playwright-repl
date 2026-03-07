@@ -268,6 +268,7 @@ export async function refAction(page, ref, action, value) {
   // Refs are JS properties on elements, resolved via _lastAriaSnapshotForQuery.
   // Run snapshot first if refs are stale.
   const loc = page.locator('aria-ref=' + ref);
+  if (await loc.count() === 0) throw new Error('Element ' + ref + ' not found. Run snapshot first.');
   if (value !== undefined) await loc[action](value);
   else await loc[action]();
   return 'Done';
@@ -380,4 +381,43 @@ export async function cookieGet(page, name) {
 export async function cookieClear(page) {
   await page.context().clearCookies();
   return 'Cleared';
+}
+
+// ─── Tab operations ───────────────────────────────────────────────────────────
+// Use globalThis.context (set by background.ts after crxApp.attach) so these
+// functions work when serialized and evaluated in the SW context via swDebugEval.
+
+export async function tabList(page) {
+  const ctx = globalThis.context;
+  if (!ctx) throw new Error('No browser context. Click Attach first.');
+  const pages = ctx.pages();
+  if (!pages.length) return 'No open tabs.';
+  const lines = await Promise.all(
+    pages.map(async (p, i) => {
+      const title = await p.title().catch(() => '');
+      const url = p.url();
+      const current = p === page ? ' (current)' : '';
+      return '- ' + i + ':' + current + ' [' + title + '](' + url + ')';
+    })
+  );
+  return lines.join('\n');
+}
+
+export async function tabNew(page, url) {
+  const ctx = globalThis.context;
+  if (!ctx) throw new Error('No browser context. Click Attach first.');
+  const newPage = await ctx.newPage();
+  if (url) await newPage.goto(url);
+  return 'Opened new tab' + (url ? ': ' + url : '');
+}
+
+export async function tabClose(page, index) {
+  const ctx = globalThis.context;
+  if (!ctx) throw new Error('No browser context. Click Attach first.');
+  const pages = ctx.pages();
+  const p = index !== undefined ? pages[index] : page;
+  if (!p) throw new Error('Tab ' + (index !== undefined ? index : 'current') + ' not found');
+  const url = p.url();
+  await p.close();
+  return 'Closed: ' + url;
 }

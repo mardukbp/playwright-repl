@@ -2,8 +2,8 @@
  * Command integration test fixtures.
  *
  * Launches Chromium with the real extension loaded. Commands are sent via
- * chrome.runtime.sendMessage to the background service worker (playwright-crx),
- * with no Engine or CommandServer involved.
+ * the panel UI (CodeMirror input → Enter), with the full stack:
+ * panel → swDebugEval → background service worker (playwright-crx).
  */
 
 import { test as base, chromium, type BrowserContext, type Page, type Worker } from '@playwright/test';
@@ -81,46 +81,44 @@ export const test = base.extend<
   },
 });
 
+const RESULT_SELECTOR = '[data-type="success"], [data-type="error"], [data-type="screenshot"], [data-type="snapshot"]';
+
 /**
- * Send a REPL command via chrome.runtime.sendMessage from the panel context.
- * Bypasses the UI — goes directly to the background service worker.
+ * Submit a command through the panel UI (CodeMirror input → Enter) and return
+ * the result from the output pane. Handles text results and screenshot images.
  */
 export async function sendCommand(
   panelPage: Page,
   command: string,
 ): Promise<{ text: string; isError: boolean; image?: string }> {
-  return panelPage.evaluate((cmd) =>
-    new Promise(resolve =>
-      chrome.runtime.sendMessage({ type: 'run', command: cmd }, resolve)
-    ), command
-  );
-}
-
-/**
- * Submit a command through the panel UI (CodeMirror input → Enter).
- * Required for run-code which routes through the sandbox iframe, not the background.
- */
-export async function sendViaUI(
-  panelPage: Page,
-  command: string,
-): Promise<{ text: string; isError: boolean }> {
-  const resultSelector = '[data-type="success"], [data-type="error"]';
-  const prevCount = await panelPage.locator(resultSelector).count();
+  const prevCount = await panelPage.locator(RESULT_SELECTOR).count();
 
   await panelPage.getByTestId('command-input').locator('.cm-content').click();
   await panelPage.keyboard.type(command, { delay: 0 });
   await panelPage.keyboard.press('Escape'); // close autocomplete
   await panelPage.keyboard.press('Enter');
 
-  // Wait for a new result line (sandbox init + async round-trip)
   await panelPage.waitForFunction(
     ({ sel, n }) => document.querySelectorAll(sel).length > n,
-    { sel: resultSelector, n: prevCount },
+    { sel: RESULT_SELECTOR, n: prevCount },
     { timeout: 15000 },
   );
 
-  const last = panelPage.locator(resultSelector).last();
+  const last = panelPage.locator(RESULT_SELECTOR).last();
+  const type = await last.getAttribute('data-type');
+
+  if (type === 'screenshot') {
+    const image = await last.locator('img').getAttribute('src') ?? '';
+    return { text: '', isError: false, image };
+  }
+
   const text = (await last.textContent()) ?? '';
-  const isError = (await last.getAttribute('data-type')) === 'error';
+  const isError = type === 'error';
   return { text, isError };
 }
+
+/**
+ * Alias for sendCommand — both go through the panel UI.
+ * Kept as a separate export for run-code tests that explicitly want the UI path.
+ */
+export const sendViaUI = sendCommand;

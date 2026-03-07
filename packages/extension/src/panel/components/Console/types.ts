@@ -23,20 +23,12 @@ export interface ConsoleEntry {
   getProperties?: (objectId: string) => Promise<unknown>;
 }
 
-type ExecutorResult = { value?: SerializedValue; text?: string; image?: string; codeBlock?: string; getProperties?: (objectId: string) => Promise<unknown> };
-
-export interface ConsoleExecutors {
-  playwright: (code: string) => Promise<ExecutorResult>;
-  js: (expression: string) => Promise<ExecutorResult>;
-  pw?: (command: string) => Promise<ExecutorResult>;
-}
-
 export interface ConsoleHandle {
   clear: () => void;
-  addResult: (result: ExecutorResult & { input: string }) => void;
+  addResult: (result: { input: string; value?: SerializedValue; text?: string; image?: string; getProperties?: (objectId: string) => Promise<unknown> }) => void;
 }
 
 export interface ConsoleProps {
-  executors: ConsoleExecutors;
+  outputLines?: import('@/types').OutputLine[];
   className?: string;
 }

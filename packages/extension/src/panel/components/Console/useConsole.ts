@@ -1,11 +1,43 @@
 import { useState } from 'react';
-import type { ConsoleEntry, ConsoleExecutors } from './types';
+import type { ConsoleEntry } from './types';
 import { COMMAND_NAMES, COMMANDS } from '@/lib/commands';
 import { addCommand, getCommandHistory, clearHistory } from '@/lib/command-history';
+import { swDebugEval, swGetProperties } from '@/lib/sw-debugger';
+import { cdpEvaluate, executeCommandForConsole } from '@/lib/bridge';
+import { fromCdpRemoteObject, type CdpRemoteObject } from './cdpToSerialized';
 
 const PW_COMMANDS = new Set(COMMAND_NAMES);
 
-export function useConsole(executors: ConsoleExecutors) {
+const SNAPSHOT_CMDS = new Set(['snapshot', 'snap', 's']);
+
+const executors = {
+    playwright: async (expr: string) => {
+        const raw = await swDebugEval(expr) as { result?: CdpRemoteObject; error?: string };
+        if (raw?.error) throw new Error(raw.error);
+        if (!raw?.result) throw new Error('No result from service worker');
+        const result = raw.result as CdpRemoteObject;
+        if (result.type === 'undefined') return { text: 'Done' as string };
+        return { value: fromCdpRemoteObject(result), getProperties: swGetProperties };
+    },
+    js: async (expr: string) => {
+        const raw = await cdpEvaluate(expr) as { result?: CdpRemoteObject; error?: string };
+        if (raw?.error) throw new Error(raw.error);
+        if (!raw?.result) throw new Error('No result');
+        return { value: fromCdpRemoteObject(raw.result) };
+    },
+    pw: async (command: string) => {
+        const result = await executeCommandForConsole(command);
+        if ('cdpResult' in result) {
+            return { value: fromCdpRemoteObject(result.cdpResult), getProperties: swGetProperties };
+        }
+        if (result.image) return { image: result.image as string };
+        const cmd = command.trim().split(/\s+/)[0].toLowerCase();
+        if (SNAPSHOT_CMDS.has(cmd)) return { codeBlock: result.text as string };
+        return { text: (result.text || 'Done') as string };
+    },
+};
+
+export function useConsole() {
     const [entries, setEntries] = useState<ConsoleEntry[]>([]);
 
     function addEntry(entry: ConsoleEntry) {
@@ -22,10 +54,8 @@ export function useConsole(executors: ConsoleExecutors) {
 
     function detectMode(input: string): 'playwright' | 'js' | 'pw' {
         const t = input.trim();
-        if (executors.pw) {
-            const firstToken = t.split(/\s+/)[0].toLowerCase();
-            if (PW_COMMANDS.has(firstToken)) return 'pw';
-        }
+        const firstToken = t.split(/\s+/)[0].toLowerCase();
+        if (PW_COMMANDS.has(firstToken)) return 'pw';
         if (t === 'page' || t.startsWith('page.') || t.startsWith('page[') ||
             t.startsWith('await page') ||
             t === 'expect' || t.startsWith('expect(') || t.startsWith('await expect(') ||
@@ -42,7 +72,7 @@ export function useConsole(executors: ConsoleExecutors) {
         const id = Math.random().toString(36).slice(2);
 
         if (trimmed.startsWith('#')) {
-            addEntry({ id, input: trimmed, status: 'done', text: trimmed });
+            addEntry({ id, input: trimmed, status: 'done' });
             return;
         }
         if (trimmed.toLowerCase() === 'clear') {
@@ -70,11 +100,7 @@ export function useConsole(executors: ConsoleExecutors) {
         addEntry({ id, input: trimmed, status: 'pending' });
 
         try {
-            const result = mode === 'playwright'
-                ? await executors.playwright(trimmed)
-                : mode === 'pw'
-                ? await executors.pw!(trimmed)
-                : await executors.js(trimmed);
+            const result = await (mode === 'playwright' ? executors.playwright(trimmed) : mode === 'pw' ? executors.pw(trimmed) : executors.js(trimmed)) as { value?: ConsoleEntry['value']; text?: string; image?: string; codeBlock?: string; getProperties?: ConsoleEntry['getProperties'] };
             updateEntry(id, { status: 'done', value: result.value, text: result.text, image: result.image, codeBlock: result.codeBlock, getProperties: result.getProperties });
         } catch (e: any) {
             const raw = e?.message ?? String(e);

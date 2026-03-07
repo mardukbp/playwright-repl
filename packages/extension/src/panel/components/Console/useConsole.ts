@@ -75,7 +75,7 @@ export function useConsole(executors: ConsoleExecutors) {
                 : mode === 'pw'
                 ? await executors.pw!(trimmed)
                 : await executors.js(trimmed);
-            updateEntry(id, { status: 'done', value: result.value, text: result.text, image: result.image, getProperties: result.getProperties });
+            updateEntry(id, { status: 'done', value: result.value, text: result.text, image: result.image, codeBlock: result.codeBlock, getProperties: result.getProperties });
         } catch (e: any) {
             const raw = e?.message ?? String(e);
             // Strip stack trace and verbose "Call log:" section from Playwright assertion errors

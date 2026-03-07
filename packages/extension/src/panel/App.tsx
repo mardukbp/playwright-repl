@@ -134,7 +134,10 @@ function App() {
               if ('cdpResult' in result) {
                 return { value: fromCdpRemoteObject(result.cdpResult), getProperties: swGetProperties };
               }
-              return { text: result.text || 'Done', image: result.image };
+              if (result.image) return { image: result.image };
+              const cmd = command.trim().split(/\s+/)[0].toLowerCase();
+              if (cmd === 'snapshot' || cmd === 'snap' || cmd === 's') return { codeBlock: result.text };
+              return { text: result.text || 'Done' };
             },
           }}
         />

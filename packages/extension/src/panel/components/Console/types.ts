@@ -18,11 +18,12 @@ export interface ConsoleEntry {
   value?: SerializedValue;
   text?: string;
   image?: string;
+  codeBlock?: string;
   errorText?: string;
   getProperties?: (objectId: string) => Promise<unknown>;
 }
 
-type ExecutorResult = { value?: SerializedValue; text?: string; image?: string; getProperties?: (objectId: string) => Promise<unknown> };
+type ExecutorResult = { value?: SerializedValue; text?: string; image?: string; codeBlock?: string; getProperties?: (objectId: string) => Promise<unknown> };
 
 export interface ConsoleExecutors {
   playwright: (code: string) => Promise<ExecutorResult>;

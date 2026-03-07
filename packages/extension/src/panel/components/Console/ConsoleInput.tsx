@@ -1,7 +1,7 @@
 import { useRef, useEffect, useImperativeHandle, Ref } from 'react';
 import { EditorView } from '@codemirror/view';
-import { useHistory } from './useHistory';
-import { consoleExtensions } from '../../lib/cm-console-setup';
+import { goUp, goDown } from '@/lib/command-history';
+import { consoleExtensions } from '@/lib/cm-console-setup';
 
 export interface ConsoleInputHandle {
     focus: () => void;
@@ -16,8 +16,6 @@ interface Props {
 export function ConsoleInput({ onSubmit, onClear, ref }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewRef      = useRef<EditorView | null>(null);
-    const hist         = useHistory();
-
     // Refs so CM6 key handlers always call the latest callbacks
     const submitRef = useRef(onSubmit);
     const clearRef  = useRef(onClear);
@@ -29,8 +27,8 @@ export function ConsoleInput({ onSubmit, onClear, ref }: Props) {
             extensions: consoleExtensions({
                 onSubmit:    (v) => { submitRef.current(v); },
                 onClear:     ()  => clearRef.current(),
-                histBack:    (c) => hist.goBack(c),
-                histForward: ()  => hist.goForward(),
+                histBack:    ()  => goUp() ?? null,
+                histForward: ()  => { const v = goDown(); return v !== undefined ? v : null; },
             }),
             parent: containerRef.current!,
         });

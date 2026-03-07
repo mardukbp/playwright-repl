@@ -1,6 +1,7 @@
 export type CommandResult = { text: string; isError: boolean; image?: string };
-export type { CdpRemoteObject } from '../components/Console/cdpToSerialized';
-import type { CdpRemoteObject } from '../components/Console/cdpToSerialized';
+export type { CdpRemoteObject } from '@/components/Console/cdpToSerialized';
+import type { CdpRemoteObject } from '@/components/Console/cdpToSerialized';
+import { parseReplCommand } from '../../commands';
 export type ConsoleCommandResult = { cdpResult: CdpRemoteObject } | { text: string; image?: string };
 
 export async function cdpEvaluate(expression: string): Promise<unknown> {
@@ -12,7 +13,6 @@ export async function cdpGetProperties(objectId: string): Promise<unknown> {
 }
 
 export async function executeCommand(command: string): Promise<CommandResult> {
-  const { parseReplCommand } = await import('../../commands');
   const parsed = parseReplCommand(command);
 
   if ('error' in parsed) return { text: parsed.error, isError: true };
@@ -60,7 +60,6 @@ export async function executeCommand(command: string): Promise<CommandResult> {
  * Used by the Console's pw executor to render expandable ObjectTree entries.
  */
 export async function executeCommandForConsole(command: string): Promise<ConsoleCommandResult> {
-  const { parseReplCommand } = await import('../../commands');
   const parsed = parseReplCommand(command);
 
   if ('error' in parsed) throw new Error(parsed.error);

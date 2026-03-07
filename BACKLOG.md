@@ -65,7 +65,7 @@
 - [x] **`highlight` command** ([#14](https://github.com/stevez/playwright-repl/issues/14))
 - [ ] **Migrate monorepo to pnpm** ([#95](https://github.com/stevez/playwright-repl/issues/95)) — `workspace:*` protocol, no more manual version sync.
 - [ ] **Improve README structure** ([#96](https://github.com/stevez/playwright-repl/issues/96)) — Per-package READMEs with root index.
-- [ ] **Static alias import for `commands.ts` in `bridge.ts`** ([#97](https://github.com/stevez/playwright-repl/issues/97)) — Replace `await import('../../commands')` with a static `@ext/commands` import.
+- [ ] **Consolidate `commands.ts` and `page-scripts.ts` into `src/panel/lib/`** ([#100](https://github.com/stevez/playwright-repl/issues/100)) — Merge both files, eliminate `../../` imports, single source of truth for aliases. Closes #97.
 - [x] **Convert to TypeScript**
 - [x] **Extension server (Phase 8)**
 - [x] **Restructure the extension code structure**

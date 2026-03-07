@@ -43,24 +43,38 @@ The CLI and Extension use different execution paths.
 └─────────────┘
 ```
 
-**Extension** — commands execute in the service worker via `playwright-crx`:
+**Extension** — commands compile to JS and execute directly in the service worker via `chrome.debugger`:
 ```
-┌─────────────────────────┐
-│  Extension (Side Panel) │
-│  chrome.runtime.sendMessage({ type: 'run', command })
-└────────────┬────────────┘
-             │
-             ▼
-┌──────────────────────────────┐
-│  background.ts               │
-│  (playwright-crx service worker)
-│  crxApp.attach(tabId)        │
-└────────────┬─────────────────┘
-             │ chrome.debugger API (CDP)
-             ▼
-┌─────────────┐
-│   Chrome    │
-└─────────────┘
+┌──────────────────────────────────────────┐
+│  Side Panel (React)                      │
+│  CommandInput → runAndDispatch()         │
+└──────────────────┬───────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────┐
+│  commands.ts                             │
+│  "click #btn" → jsExpr string            │
+│  e.g. return await refAction(page, ...)  │
+└──────────────────┬───────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────┐
+│  swDebugEval (chrome.debugger)           │
+│  Attaches debugger to service worker     │
+│  Evaluates jsExpr in SW runtime          │
+└──────────────────┬───────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────┐
+│  Service Worker runtime                  │
+│  page, context, crxApp — live globals    │
+│  set by Attach → playwright-crx          │
+└──────────────────┬───────────────────────┘
+                   │ playwright-crx CDP
+                   ▼
+┌──────────────────┐
+│   Chrome tab     │
+└──────────────────┘
 ```
 
 The extension is **self-contained** — no external server or CLI process is required.
@@ -508,7 +522,7 @@ packages/
 │       └── index.ts              # Public API exports
 └── extension/      # Chrome side panel extension (React, Vite, Tailwind)
     ├── src/
-    │   ├── background.ts         # Service worker — playwright-crx command execution + recording
+    │   ├── background.ts         # Service worker — lifecycle only (attach, record, health, CDP, ping)
     │   ├── commands.ts           # Keyword → Playwright function mapping
     │   ├── page-scripts.ts       # Text locator and assertion helpers (extension)
     │   ├── panel/                # Side panel UI (React)

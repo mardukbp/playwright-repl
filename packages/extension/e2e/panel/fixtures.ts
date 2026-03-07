@@ -12,16 +12,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = path.resolve(__dirname, '../../dist');
 
 type ExtensionContext = { context: BrowserContext; extensionId: string };
-type MockResponse = (response: { text: string; isError: boolean }) => void;
 
 /**
  * Custom test fixtures for the extension panel.
  *
  * Worker-scoped: browser context is shared across all tests in a worker.
- * Test-scoped: panelPage and mockResponse reset per test.
+ * Test-scoped: panelPage resets per test.
  */
 export const test = base.extend<
-  { panelPage: Page; mockResponse: MockResponse },
+  { panelPage: Page },
   { extensionContext: ExtensionContext }
 >({
   // Worker-scoped: launch browser once, reuse across tests
@@ -51,15 +50,9 @@ export const test = base.extend<
     const { context, extensionId } = extensionContext;
     const page = await context.newPage();
 
-    // Install init script so the mock is in place before any panel JS runs
-    await page.addInitScript(() => {
-      // @ts-expect-error - test-only global injected before panel JS runs
-      window.__testRunResponse = { text: 'OK', isError: false };
-    });
-
     await page.goto(`chrome-extension://${extensionId}/panel/panel.html`);
 
-    // Override chrome.runtime.sendMessage after page load
+    // Override chrome.runtime.sendMessage after page load to stub lifecycle messages
     await page.evaluate(() => {
       const orig = (chrome.runtime.sendMessage as any).bind(chrome.runtime);
       (chrome.runtime as any).sendMessage = async (msg: any) => {
@@ -67,7 +60,6 @@ export const test = base.extend<
         if (msg.type === 'attach') return { ok: true, url: 'https://example.com' };
         if (msg.type === 'record-start') return { ok: true, url: 'https://example.com' };
         if (msg.type === 'record-stop') return { ok: true };
-        if (msg.type === 'run') return (window as any).__testRunResponse;
         return orig(msg);
       };
       // Mock connect() so recording tests can toggle without a real port
@@ -82,14 +74,6 @@ export const test = base.extend<
 
     await use(page);
     await page.close();
-  },
-
-  mockResponse: async ({ panelPage }, use) => {
-    await use((response: { text: string; isError: boolean }) => {
-      panelPage.evaluate((r) => {
-        (window as any).__testRunResponse = r;
-      }, response);
-    });
   },
 });
 

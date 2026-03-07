@@ -268,6 +268,7 @@ export async function refAction(page, ref, action, value) {
   // Refs are JS properties on elements, resolved via _lastAriaSnapshotForQuery.
   // Run snapshot first if refs are stale.
   const loc = page.locator('aria-ref=' + ref);
+  if (await loc.count() === 0) throw new Error('Element ' + ref + ' not found. Run snapshot first.');
   if (value !== undefined) await loc[action](value);
   else await loc[action]();
   return 'Done';
@@ -380,4 +381,49 @@ export async function cookieGet(page, name) {
 export async function cookieClear(page) {
   await page.context().clearCookies();
   return 'Cleared';
+}
+
+// ─── Tab operations ───────────────────────────────────────────────────────────
+// Use chrome.tabs API (available in SW) so ALL Chrome tabs are visible,
+// not just pages tracked by playwright-crx. Scoped to the attached tab's window.
+
+export async function tabList(_page) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  const tabs = await chrome.tabs.query(windowId !== undefined ? { windowId } : {});
+  return tabs.map((tab, i) => ({
+    index: i,
+    title: tab.title || '',
+    url: tab.url || '',
+    current: tab.id === activeTabId,
+  }));
+}
+
+export async function tabNew(_page, url) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  await chrome.tabs.create(windowId !== undefined ? { url, windowId } : { url });
+  return 'Opened new tab' + (url ? ': ' + url : '');
+}
+
+export async function tabClose(_page, index) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  const tabs = await chrome.tabs.query(windowId !== undefined ? { windowId } : {});
+  const tab = index !== undefined ? tabs[index] : tabs.find(t => t.id === activeTabId);
+  if (!tab?.id) throw new Error('Tab ' + (index !== undefined ? index : 'current') + ' not found');
+  const url = tab.url || '';
+  await chrome.tabs.remove(tab.id);
+  return 'Closed: ' + url;
+}
+
+export async function tabSelect(_page, index) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  const tabs = await chrome.tabs.query(windowId !== undefined ? { windowId } : {});
+  const tab = tabs[index];
+  if (!tab?.id) throw new Error('Tab ' + index + ' not found');
+  const res = await globalThis.attachToTab(tab.id);
+  if (!res.ok) throw new Error(res.error || 'Attach failed');
+  return 'Selected tab ' + index + ': ' + (res.url || '');
 }

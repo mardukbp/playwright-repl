@@ -6,7 +6,7 @@ import TerminalPane from './components/TerminalPane'
 import CommandInput, { CommandInputHandle } from './components/CommandInput'
 import { panelReducer, initialState } from './reducer'
 import { runAndDispatch } from './lib/run'
-import { attachToTab, cdpEvaluate, executeCommand } from './lib/bridge'
+import { attachToTab, cdpEvaluate, executeCommandForConsole } from './lib/bridge'
 import { swDebugEval, swGetProperties } from './lib/sw-debugger'
 import { Console, type ConsoleHandle } from './components/Console';
 import { fromCdpRemoteObject, type CdpRemoteObject } from './components/Console/cdpToSerialized';
@@ -130,8 +130,10 @@ function App() {
               return { value: fromCdpRemoteObject(raw.result) };
             },
             pw: async command => {
-              const result = await executeCommand(command);
-              if (result.isError) throw new Error(result.text);
+              const result = await executeCommandForConsole(command);
+              if ('cdpResult' in result) {
+                return { value: fromCdpRemoteObject(result.cdpResult), getProperties: swGetProperties };
+              }
               return { text: result.text || 'Done', image: result.image };
             },
           }}

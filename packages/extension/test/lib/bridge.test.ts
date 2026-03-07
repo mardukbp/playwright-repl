@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { executeCommand, attachToTab, connectWithRetry } from '@/lib/bridge';
+import { attachToTab, connectWithRetry } from '@/lib/bridge';
 
 describe('bridge', () => {
   beforeEach(() => {
@@ -10,26 +10,6 @@ describe('bridge', () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
-  });
-
-  // ─── executeCommand ────────────────────────────────────────────────────────
-
-  it('executeCommand sends run message and returns result', async () => {
-    const expected = { text: 'Navigated', isError: false };
-    (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue(expected);
-
-    const result = await executeCommand('goto https://example.com');
-
-    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'run', command: 'goto https://example.com' });
-    expect(result).toEqual(expected);
-  });
-
-  it('executeCommand returns error result from background', async () => {
-    const expected = { text: 'Element not found', isError: true };
-    (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue(expected);
-
-    const result = await executeCommand('click e99');
-    expect(result).toEqual(expected);
   });
 
   // ─── attachToTab ──────────────────────────────────────────────────────────

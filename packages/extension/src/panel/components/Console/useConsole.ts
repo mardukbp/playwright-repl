@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ConsoleEntry, ConsoleExecutors } from './types';
-import { COMMAND_NAMES } from '@/lib/commands';
+import { COMMAND_NAMES, COMMANDS } from '@/lib/commands';
+import { addCommand, getCommandHistory, clearHistory } from '@/lib/command-history';
 
 const PW_COMMANDS = new Set(COMMAND_NAMES);
 
@@ -38,8 +39,34 @@ export function useConsole(executors: ConsoleExecutors) {
         const trimmed = input.trim();
         if (!trimmed) return;
 
-        const mode = detectMode(trimmed);
         const id = Math.random().toString(36).slice(2);
+
+        if (trimmed.startsWith('#')) {
+            addEntry({ id, input: trimmed, status: 'done', text: trimmed });
+            return;
+        }
+        if (trimmed.toLowerCase() === 'clear') {
+            clear();
+            return;
+        }
+        if (trimmed.toLowerCase() === 'help') {
+            const lines = Object.entries(COMMANDS).map(([n, i]) => `  ${n.padEnd(22)} ${i.desc}`).join('\n');
+            addEntry({ id, input: trimmed, status: 'done', text: `Available commands:\n${lines}` });
+            return;
+        }
+        if (trimmed.toLowerCase() === 'history clear') {
+            clearHistory();
+            addEntry({ id, input: trimmed, status: 'done', text: 'History cleared.' });
+            return;
+        }
+        if (trimmed.toLowerCase() === 'history') {
+            const h = getCommandHistory();
+            addEntry({ id, input: trimmed, status: 'done', text: h.length ? h.join('\n') : '(no history)' });
+            return;
+        }
+        addCommand(trimmed);
+
+        const mode = detectMode(trimmed);
         addEntry({ id, input: trimmed, status: 'pending' });
 
         try {

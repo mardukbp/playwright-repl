@@ -96,11 +96,14 @@ async function startRecording(): Promise<{ ok: boolean; url?: string; error?: st
 
     const url = crxApp.context().pages()[0]?.url();
 
-    await crxApp.recorder.show({
+    // Fire without await — recorder.show() waits for the panel to connect back via port,
+    // but the panel only calls connectWithRetry() after receiving { ok: true } here.
+    // Awaiting would create a deadlock.
+    crxApp.recorder.show({
       mode: 'recording',
       language: 'javascript',
       window: { type: 'sidepanel', url: 'panel/panel.html' },
-    });
+    }).catch((e: unknown) => console.error('[record] recorder.show error:', e));
 
     return { ok: true, url };
   } catch (e) {

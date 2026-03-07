@@ -213,7 +213,13 @@ function Toolbar({ editorContent, fileName, stepLine, attachedUrl, attachedTabId
             return;
         }
 
-        const result = await chrome.runtime.sendMessage({ type: 'record-start' });
+        let result: { ok: boolean; url?: string; error?: string } | undefined;
+        try {
+            result = await chrome.runtime.sendMessage({ type: 'record-start' });
+        } catch (e) {
+            dispatch({ type: 'ADD_LINE', line: { text: `Recording failed: ${String(e)}`, type: 'error' } });
+            return;
+        }
         if (!result?.ok) {
             dispatch({ type: 'ADD_LINE', line: { text: `Recording failed: ${result?.error ?? 'unknown error'}`, type: 'error' } });
             return;

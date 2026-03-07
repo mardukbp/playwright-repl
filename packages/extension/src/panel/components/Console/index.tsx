@@ -33,6 +33,9 @@ function outputLinesToEntries(lines: OutputLine[]): ConsoleEntry[] {
         } else if (line.type === 'info') {
             entries.push({ id, input: '', status: 'done', text: line.text });
             i++;
+        } else if (line.type === 'code-block') {
+            entries.push({ id, input: '', status: 'done', codeBlock: line.text });
+            i++;
         } else {
             i++;
         }

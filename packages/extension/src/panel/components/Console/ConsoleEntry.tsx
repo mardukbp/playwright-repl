@@ -21,12 +21,12 @@ export function ConsoleEntry({ entry }: { entry: Entry }) {
                         {entry.value !== undefined ? (
                             <ObjectTree data={entry.value} getProperties={entry.getProperties} />
                         ) : entry.codeBlock !== undefined ? (
-                            <div className="relative border border-(--border-primary) rounded p-2 my-1 bg-(--color-surface)">
+                            <div className="relative border border-solid border-(--border-primary) rounded-[4px] my-[6px] mx-0 bg-(--bg-line-highlight)">
+                                <pre className="m-0 py-2 px-3 text-(--color-command) font-[inherit] text-[12px] leading-4 whitespace-pre-wrap wrap-break-word">{entry.codeBlock}</pre>
                                 <button
-                                    className="absolute top-1 right-1 text-xs px-1 py-0.5 border border-(--border-primary) rounded hover:opacity-70 cursor-pointer"
+                                    className="absolute top-1 right-1 bg-(--bg-button) text-(--text-default) border border-solid border-(--border-button) rounded-[3px] py-[2px] px-2 font-[inherit] text-[10px] cursor-pointer hover:bg-(--bg-button-hover)"
                                     onClick={() => navigator.clipboard.writeText(entry.codeBlock!)}
                                 >Copy</button>
-                                <pre className="overflow-auto text-xs whitespace-pre max-h-64 pr-12">{entry.codeBlock}</pre>
                             </div>
                         ) : entry.image !== undefined ? (
                             <>

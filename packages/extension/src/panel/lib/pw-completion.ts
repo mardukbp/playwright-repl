@@ -15,9 +15,12 @@ export function pwCompletion(context: CompletionContext): CompletionResult | nul
   const word = context.matchBefore(/[\w-]*/);
   if (!word || (word.from === word.to && !context.explicit)) return null;
 
+  const prefix = word.text.toLowerCase();
+  const filtered = prefix ? completions.filter(c => c.label.startsWith(prefix)) : completions;
+
   return {
     from: word.from,
-    options: completions,
+    options: filtered,
     validFor: /^[\w-]*$/,
   };
 }

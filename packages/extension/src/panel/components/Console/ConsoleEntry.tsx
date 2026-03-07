@@ -32,7 +32,7 @@ export function ConsoleEntry({ entry }: { entry: Entry }) {
                             <>
                                 <img
                                     src={entry.image}
-                                    className="max-h-32 cursor-zoom-in rounded"
+                                    className="max-w-100 cursor-zoom-in rounded"
                                     onClick={() => setLightbox(true)}
                                 />
                                 {lightbox && <Lightbox image={entry.image} onClose={() => setLightbox(false)} />}

@@ -2,7 +2,7 @@ import { EditorView, keymap, placeholder, drawSelection } from '@codemirror/view
 import { javascript } from '@codemirror/lang-javascript';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { history, historyKeymap } from '@codemirror/commands';
-import { autocompletion, completionStatus } from '@codemirror/autocomplete';
+import { autocompletion, acceptCompletion, completionStatus } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import { pwCompletion } from '@/lib/pw-completion';
 
@@ -32,6 +32,10 @@ export function consoleExtensions(opts: Opts): Extension[] {
                 replaceDoc(view, '');
                 return true;
             },
+        },
+        {
+            key: 'Tab',
+            run: acceptCompletion,
         },
         {
             key: 'Ctrl-l',

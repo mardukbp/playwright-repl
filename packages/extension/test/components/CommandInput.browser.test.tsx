@@ -129,6 +129,14 @@ describe('CommandInput Component tests', () => {
         expect(dropdown?.textContent).toContain('goto');
     });
 
+    it('should only show prefix-matching commands in autocomplete', async () => {
+        // 'ck' would fuzzy-match 'click' but is not a prefix — dropdown should not appear
+        await typeInEditor(screen, 'ck');
+
+        await new Promise(r => setTimeout(r, 500));
+        expect(document.querySelector('.cm-tooltip-autocomplete')).toBeNull();
+    });
+
     it.skip('should accept autocomplete item on Enter when dropdown is open', async () => {
         await typeInEditor(screen, 'go');
         await waitForVisible('.cm-tooltip-autocomplete');

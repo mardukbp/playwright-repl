@@ -1,4 +1,4 @@
-import { useImperativeHandle, useRef, useEffect, useMemo, Ref } from 'react';
+import { useImperativeHandle, useRef, useEffect, useMemo, useState, Ref } from 'react';
 import { useConsole } from './useConsole';
 import { ConsoleOutput } from './ConsoleOutput';
 import { ConsoleInput, type ConsoleInputHandle } from './ConsoleInput';
@@ -45,12 +45,24 @@ interface Props extends ConsoleProps {
 }
 
 export function Console({ outputLines, className, ref }: Props) {
+    const [historyOffset, setHistoryOffset] = useState(0);
     const { entries, execute, clear, addResult } = useConsole();
-    const historicalEntries = useMemo(() => outputLinesToEntries(outputLines ?? []), [outputLines]);
+    const allHistorical = useMemo(() => outputLinesToEntries(outputLines ?? []), [outputLines]);
+    const historicalEntries = allHistorical.slice(historyOffset);
     const inputRef = useRef<ConsoleInputHandle>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    useImperativeHandle(ref, () => ({ clear, addResult }));
+    function clearAll() {
+        setHistoryOffset(allHistorical.length);
+        clear();
+    }
+
+    function handleExecute(input: string) {
+        if (input.trim().toLowerCase() === 'clear') { clearAll(); return; }
+        execute(input);
+    }
+
+    useImperativeHandle(ref, () => ({ clear: clearAll, addResult }));
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'instant' });
@@ -62,7 +74,7 @@ export function Console({ outputLines, className, ref }: Props) {
                 <ConsoleOutput entries={[...historicalEntries, ...entries]} />
                 <div className="flex items-start gap-1 py-0.5">
                     <span className="text-(--color-prompt) shrink-0">&gt;</span>
-                    <ConsoleInput ref={inputRef} onSubmit={execute} onClear={clear} />
+                    <ConsoleInput ref={inputRef} onSubmit={handleExecute} onClear={clearAll} />
                 </div>
                 <div ref={bottomRef} />
             </div>

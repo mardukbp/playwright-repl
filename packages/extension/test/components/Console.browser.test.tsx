@@ -137,6 +137,20 @@ describe('Console component tests', () => {
         await expect.element(screen.getByText('click e5')).not.toBeInTheDocument();
     });
 
+    it('should clear outputLines entries when clear command is typed', async () => {
+        const lines: OutputLine[] = [
+            { text: 'click e5', type: 'command' },
+            { text: 'Clicked', type: 'success' },
+        ];
+        const screen = await render(<Console outputLines={lines} />);
+        await expect.element(screen.getByText('click e5')).toBeInTheDocument();
+
+        await typeInEditor(screen, 'clear');
+        await userEvent.keyboard('{Enter}');
+
+        await expect.element(screen.getByText('click e5')).not.toBeInTheDocument();
+    });
+
     it('should render code-block from outputLines', async () => {
         const lines: OutputLine[] = [
             { text: 'snapshot', type: 'command' },

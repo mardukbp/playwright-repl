@@ -52,6 +52,7 @@
 ## Console (Phase 2)
 
 - [ ] **CDP remote object inspection** — `document`, `window`, and other DOM objects currently serialize as `"ref: <Document>"` because `page.evaluate()` can't cross the serialization boundary. Use `chrome.debugger` `Runtime.evaluate` → `Runtime.getProperties` to get lazy remote object handles and build an expandable tree without full serialization.
+- [ ] **ObjectTree array rendering** — Arrays of objects currently render as collapsed entries. Improve to show inline previews (e.g. `Array(3) [{ id: 1, ... }, ...]`) and a table-style layout for homogeneous object arrays, similar to Chrome DevTools `console.table`.
 - [ ] **Console autocomplete** — Autocomplete in ConsoleInput: pw keywords when input starts with a command word, JS property completions (via `Runtime.completionsForExpression` CDP call) for `page.` chains and JS expressions.
 - [ ] **Console input in scroll flow** — Option to render the input row inline with entries (Chrome DevTools "input flows with output" style) vs. fixed at bottom. Currently fixed at bottom.
 - [ ] **Richer console output types** — Console currently renders text, object trees, and screenshots. Add: `info` banners (blue tint), `warning`, `code-block` (syntax-highlighted CM6 read-only view for snapshot/HTML output), image rendering for `screenshot` results. Match all output types that the terminal pane already shows.

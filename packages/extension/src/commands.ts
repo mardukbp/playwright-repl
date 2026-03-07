@@ -20,7 +20,7 @@ import {
   localStorageGet, localStorageSet, localStorageDelete, localStorageClear, localStorageList,
   sessionStorageGet, sessionStorageSet, sessionStorageDelete, sessionStorageClear, sessionStorageList,
   cookieList, cookieGet, cookieClear,
-  tabList, tabNew, tabClose,
+  tabList, tabNew, tabClose, tabSelect,
 } from './page-scripts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -430,8 +430,7 @@ function resolveArgs(args: ParsedArgs): ParsedArgs | DirectExecution {
   if (cmdName === 'tab-select') {
     const idx = args._[1] ? parseInt(args._[1]) : NaN;
     if (isNaN(idx)) return args; // let error bubble
-    // Raw jsExpr: must update globalThis.page so subsequent commands target the new tab
-    return { jsExpr: `const _ctx = globalThis.context; if (!_ctx) throw new Error('No browser context. Click Attach first.'); const _p = _ctx.pages()[${idx}]; if (!_p) throw new Error('Tab ${idx} not found'); await _p.bringToFront(); globalThis.page = _p; return 'Selected tab ${idx}: ' + _p.url();` };
+    return { jsExpr: call(tabSelect, idx) };
   }
 
   return args;

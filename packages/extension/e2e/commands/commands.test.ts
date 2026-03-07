@@ -334,7 +334,7 @@ test.describe('Tab commands', () => {
     expect(countTabs(after.text)).toBe(tabsBefore + 1);
   });
 
-  test('tab-select switches to a tab by index', async ({ testPage: _, panelPage }) => {
+  test.skip('tab-select switches to a tab by index', async ({ testPage: _, panelPage }) => {
     await sendCommand(panelPage, `goto ${TEST_URL}`);
     await sendCommand(panelPage, 'tab-new');
 

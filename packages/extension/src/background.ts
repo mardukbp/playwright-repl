@@ -162,3 +162,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg.type === 'ping') { sendResponse({ pong: true }); return false; }
 });
+
+// Expose stable globals for swDebugEval — functions that never change go here, not inside attachToTab
+(globalThis as any).attachToTab = attachToTab;

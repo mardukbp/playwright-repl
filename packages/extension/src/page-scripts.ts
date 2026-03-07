@@ -384,40 +384,46 @@ export async function cookieClear(page) {
 }
 
 // ─── Tab operations ───────────────────────────────────────────────────────────
-// Use globalThis.context (set by background.ts after crxApp.attach) so these
-// functions work when serialized and evaluated in the SW context via swDebugEval.
+// Use chrome.tabs API (available in SW) so ALL Chrome tabs are visible,
+// not just pages tracked by playwright-crx. Scoped to the attached tab's window.
 
-export async function tabList(page) {
-  const ctx = globalThis.context;
-  if (!ctx) throw new Error('No browser context. Click Attach first.');
-  const pages = ctx.pages();
-  if (!pages.length) return 'No open tabs.';
-  const lines = await Promise.all(
-    pages.map(async (p, i) => {
-      const title = await p.title().catch(() => '');
-      const url = p.url();
-      const current = p === page ? ' (current)' : '';
-      return '- ' + i + ':' + current + ' [' + title + '](' + url + ')';
-    })
-  );
+export async function tabList(_page) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  const tabs = await chrome.tabs.query(windowId !== undefined ? { windowId } : {});
+  if (!tabs.length) return 'No open tabs.';
+  const lines = tabs.map((tab, i) => {
+    const current = tab.id === activeTabId ? ' (current)' : '';
+    return '- ' + i + ':' + current + ' [' + (tab.title || '') + '](' + (tab.url || '') + ')';
+  });
   return lines.join('\n');
 }
 
-export async function tabNew(page, url) {
-  const ctx = globalThis.context;
-  if (!ctx) throw new Error('No browser context. Click Attach first.');
-  const newPage = await ctx.newPage();
-  if (url) await newPage.goto(url);
+export async function tabNew(_page, url) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  await chrome.tabs.create(windowId !== undefined ? { url, windowId } : { url });
   return 'Opened new tab' + (url ? ': ' + url : '');
 }
 
-export async function tabClose(page, index) {
-  const ctx = globalThis.context;
-  if (!ctx) throw new Error('No browser context. Click Attach first.');
-  const pages = ctx.pages();
-  const p = index !== undefined ? pages[index] : page;
-  if (!p) throw new Error('Tab ' + (index !== undefined ? index : 'current') + ' not found');
-  const url = p.url();
-  await p.close();
+export async function tabClose(_page, index) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  const tabs = await chrome.tabs.query(windowId !== undefined ? { windowId } : {});
+  const tab = index !== undefined ? tabs[index] : tabs.find(t => t.id === activeTabId);
+  if (!tab?.id) throw new Error('Tab ' + (index !== undefined ? index : 'current') + ' not found');
+  const url = tab.url || '';
+  await chrome.tabs.remove(tab.id);
   return 'Closed: ' + url;
+}
+
+export async function tabSelect(_page, index) {
+  const activeTabId = globalThis.activeTabId;
+  const windowId = activeTabId ? (await chrome.tabs.get(activeTabId)).windowId : undefined;
+  const tabs = await chrome.tabs.query(windowId !== undefined ? { windowId } : {});
+  const tab = tabs[index];
+  if (!tab?.id) throw new Error('Tab ' + index + ' not found');
+  const res = await globalThis.attachToTab(tab.id);
+  if (!res.ok) throw new Error(res.error || 'Attach failed');
+  return 'Selected tab ' + index + ': ' + (res.url || '');
 }

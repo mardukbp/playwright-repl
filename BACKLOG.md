@@ -43,7 +43,7 @@
 - [ ] **Improve test coverage after playwright-crx migration** ([#82](https://github.com/stevez/playwright-repl/issues/82)) — `commands.ts`, `page-scripts.ts`, `App.tsx`, `Toolbar.tsx` at 0%.
 - [ ] **Auto-attach fails when only one tab open** ([#83](https://github.com/stevez/playwright-repl/issues/83)) — `chrome://` tabs rejected with no retry fallback.
 
-## Console (Phase 2)
+## Console (Phase 2) — [#98](https://github.com/stevez/playwright-repl/issues/98)
 
 - [ ] **CDP remote object inspection** ([#84](https://github.com/stevez/playwright-repl/issues/84)) — Expandable tree for `document`, `window` via `Runtime.getProperties`.
 - [ ] **ObjectTree array rendering** ([#85](https://github.com/stevez/playwright-repl/issues/85)) — Inline previews and table layout for homogeneous arrays.

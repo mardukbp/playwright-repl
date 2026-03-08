@@ -2,19 +2,20 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import type { PanelState, Action } from "@/reducer";
 import { exportToPlaywright, jsonlToRepl } from '@/lib/converter';
 import { connectWithRetry, attachToTab } from '@/lib/bridge';
-import { runAndDispatch } from '@/lib/run';
+import { runAndDispatch, runJsScript } from '@/lib/run';
 import { SunIcon, MoonIcon, FolderOpenIcon, SaveIcon, RecordIcon, StopIcon, ExportIcon } from './Icons';
-import type { ConsoleHandle } from './Console';
+import type { EditorHandle } from './CodeMirrorEditorPane';
 
-interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'fileName' | 'editorMode' | 'stepLine' | 'attachedUrl' | 'attachedTabId' | 'isAttaching'> {
+interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'fileName' | 'editorMode' | 'stepLine' | 'attachedUrl' | 'attachedTabId' | 'isAttaching' | 'isRunning'> {
     dispatch: React.Dispatch<Action>,
-    consoleRef: React.RefObject<ConsoleHandle | null>,
+    editorRef: React.RefObject<EditorHandle | null>,
 };
 
-function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, attachedTabId, isAttaching, dispatch, consoleRef }: ToolbarProps) {
+function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, attachedTabId, isAttaching, isRunning, dispatch, editorRef }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const recorderPortRef = useRef<chrome.runtime.Port | null>(null);
     const prevActionCountRef = useRef(0);
+    const cancelRunRef = useRef(false);
     const [isRecording, setIsRecording] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === 'dark');
     const [availableTabs, setAvailableTabs] = useState<chrome.tabs.Tab[]>([]);
@@ -119,9 +120,16 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
     }
 
     async function handleSave() {
+        const isJs = editorMode === 'js';
+        const ext = isJs ? '.js' : '.pw';
+        const defaultName = fileName
+            ? (isJs && fileName.endsWith('.pw') ? fileName.replace(/\.pw$/, '.js') : fileName)
+            : `commands-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}${ext}`;
         const opts = {
-            suggestedName: fileName || "commands-" + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + ".pw",
-            types: [{ description: "PW command files", accept: { "text/plain": [".pw"] } }],
+            suggestedName: defaultName,
+            types: isJs
+                ? [{ description: "JavaScript files", accept: { "text/javascript": [".js"] } }]
+                : [{ description: "PW command files", accept: { "text/plain": [".pw"] } }],
         };
         try {
             const fileHandle: FileSystemFileHandle = await window.showSaveFilePicker(opts);
@@ -136,7 +144,7 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
         }
     }
 
-    // ─── Run / Step ───
+    // ─── Run / Step / Stop ───
 
     async function runCommand(index: number, command: string) {
         dispatch({ type: 'SET_RUN_LINE', currentRunLine: index });
@@ -145,19 +153,28 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
     }
 
     async function handleRun() {
+        cancelRunRef.current = false;
         dispatch({ type: 'RUN_START' });
         if (editorMode === 'js') {
-            await consoleRef.current?.runScript(editorContent);
+            await runJsScript(editorContent, dispatch);
         } else {
             for (let i = 0; i < lines.length; i++) {
+                if (cancelRunRef.current) break;
                 const trimmedValue = lines[i].trim();
                 if (!lines[i].startsWith('#') && trimmedValue) {
                     await runCommand(i, trimmedValue);
                 }
             }
-            dispatch({ type: 'ADD_LINE', line: { text: 'Run complete.', type: 'info' } });
+            if (!cancelRunRef.current) {
+                dispatch({ type: 'ADD_LINE', line: { text: 'Run complete.', type: 'info' } });
+            }
         }
-        dispatch({ type: 'RUN_STOP' })
+        dispatch({ type: 'RUN_STOP' });
+    }
+
+    function handleStop() {
+        cancelRunRef.current = true;
+        dispatch({ type: 'RUN_STOP' });
     }
 
     function findExecutableIndex(fromIndex: number) {
@@ -187,10 +204,13 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleRecordedSources = useCallback((sources: any[]) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const source = sources.find((s: any) => s.id === 'jsonl') || sources[0];
-        if (!source?.actions?.length) return;
-        const newActions = (source.actions as string[]).slice(prevActionCountRef.current);
-        prevActionCountRef.current = source.actions.length;
+        const jsonlSource = sources.find((s: any) => s.id === 'jsonl') || sources[0];
+        if (!jsonlSource?.actions?.length) return;
+        const prevCount = prevActionCountRef.current;
+        const newActions = (jsonlSource.actions as string[]).slice(prevCount);
+        prevActionCountRef.current = jsonlSource.actions.length;
+
+        // Console: show new JSONL actions as pretty JSON
         for (const a of newActions) {
             try {
                 dispatch({ type: 'ADD_LINE', line: { text: JSON.stringify(JSON.parse(a), null, 2), type: 'code-block' } });
@@ -198,13 +218,31 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
                 dispatch({ type: 'ADD_LINE', line: { text: a, type: 'info' } });
             }
         }
-        const replLines = (source.actions as string[])
-            .map((a: string) => jsonlToRepl(a, false))
-            .filter(Boolean) as string[];
-        if (replLines.length > 0) {
-            dispatch({ type: 'EDIT_EDITOR_CONTENT', content: replLines.join('\n') });
+
+        // Editor: insert only new actions at cursor; skip openPage (handleRecord already adds goto)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isOpenPage = (jsonl: string) => { try { return JSON.parse(jsonl).name === 'openPage'; } catch { return false; } };
+
+        if (editorMode === 'js') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const jsSource = sources.find((s: any) => s.id === 'javascript');
+            const jsLines = newActions.flatMap((a, i) => {
+                if (isOpenPage(a)) return [];
+                const jsAction = (jsSource?.actions as string[] | undefined)?.[prevCount + i];
+                if (!jsAction) return [];
+                return jsAction.split('\n')
+                    .map((line: string) => line.replace(/^ {2}/, ''))          // strip 2-space base offset
+                    .filter((line: string) => !line.startsWith('const page =')); // page already exists
+            }).filter(Boolean);
+            if (jsLines.length) editorRef.current?.insertAtCursor(jsLines.join('\n'));
+        } else {
+            const replLines = newActions
+                .filter(a => !isOpenPage(a))
+                .map((a: string) => jsonlToRepl(a, false))
+                .filter(Boolean) as string[];
+            if (replLines.length) editorRef.current?.insertAtCursor(replLines.join('\n'));
         }
-    }, [dispatch]);
+    }, [dispatch, editorMode]);
 
     async function handleRecord() {
         if (!chrome.tabs?.query) return;
@@ -242,7 +280,10 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
         prevActionCountRef.current = 0;
 
         if (result.url && result.url !== 'about:blank') {
-            dispatch({ type: 'APPEND_EDITOR_CONTENT', command: `goto "${result.url}"` });
+            const gotoCmd = editorMode === 'js'
+                ? `await page.goto(${JSON.stringify(result.url)});`
+                : `goto "${result.url}"`;
+            dispatch({ type: 'APPEND_EDITOR_CONTENT', command: gotoCmd });
         }
 
         dispatch({ type: 'ADD_LINE', line: { text: 'Recording started. Interact with the page...', type: 'command' } });
@@ -296,9 +337,12 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
                 >
                     {isRecording ? <StopIcon /> : <RecordIcon />}
                 </button>
-                <button id="run-btn" data-testid="run-btn" title="Run script (Ctrl+Enter)" disabled={!editorContent.trim()} onClick={handleRun}>&#9654;</button>
+                {isRunning
+                    ? <button id="stop-run-btn" data-testid="stop-run-btn" title="Stop run" onClick={handleStop}><StopIcon /></button>
+                    : <button id="run-btn" data-testid="run-btn" title="Run script (Ctrl+Enter)" disabled={!editorContent.trim()} onClick={handleRun}>&#9654;</button>
+                }
                 <button id="step-btn" title="Step: run next line" disabled={!editorContent.trim() || editorMode === 'js'} onClick={handleStep}>&#9655;</button>
-                <button id="export-btn" title="Export as Playwright test" disabled={!editorContent.trim()} onClick={handleExport}><ExportIcon /></button>
+                <button id="export-btn" title="Export as Playwright test" disabled={!editorContent.trim() || editorMode === 'js'} onClick={handleExport}><ExportIcon /></button>
                 <span className="w-px h-4.5 bg-(--color-toolbar-sep) mx-1"></span>
                 <button
                     data-testid="mode-toggle"

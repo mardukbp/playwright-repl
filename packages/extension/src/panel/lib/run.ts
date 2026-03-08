@@ -7,6 +7,10 @@ import { getCommandHistory, clearHistory, addCommand } from '@/lib/command-histo
 import { swDebugEval } from '@/lib/sw-debugger';
 import type { CdpRemoteObject } from '@/components/Console/cdpToSerialized';
 
+function trimStack(msg: string): string {
+    return msg.split('\n    at ')[0].split('\nCall log:')[0].trim();
+}
+
 function runLocalCommand(command: string, dispatch: React.Dispatch<Action>): boolean {
     if (command.trim().startsWith('#')) {
         dispatch({ type: 'ADD_LINE', line: { text: command, type: 'comment' } });
@@ -61,7 +65,7 @@ export async function runAndDispatch(command: string, dispatch: React.Dispatch<A
             dispatch({ type: 'COMMAND_SUCCESS', line: { text, type: 'success' } });
             return { text, isError: false };
         } catch (e: any) {
-            const text = e?.message ?? String(e);
+            const text = trimStack(e?.message ?? String(e));
             dispatch({ type: 'COMMAND_SUCCESS', line: { text, type: 'error' } });
             return { text, isError: true };
         }

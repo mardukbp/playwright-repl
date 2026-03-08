@@ -21,15 +21,19 @@ import { executeCommand, attachToTab, connectWithRetry } from '@/lib/bridge';
 
 // ─── Helper to render Toolbar with default required props ─────────────────────
 
+const mockConsoleRef = { current: { clear: vi.fn(), addResult: vi.fn(), runScript: vi.fn().mockResolvedValue(undefined) } };
+
 function renderToolbar(overrides: Partial<Parameters<typeof Toolbar>[0]> = {}) {
   return render(<Toolbar
     editorContent=''
     fileName=''
+    editorMode='pw'
     stepLine={-1}
     attachedUrl={null}
     attachedTabId={null}
     isAttaching={false}
     dispatch={vi.fn()}
+    consoleRef={mockConsoleRef}
     {...overrides}
   />);
 }
@@ -58,6 +62,9 @@ describe('Toolbar component tests', () => {
       onDisconnect: { addListener: vi.fn() },
       disconnect: vi.fn(),
     } as unknown as chrome.runtime.Port);
+    mockConsoleRef.current.runScript.mockResolvedValue(undefined);
+    mockConsoleRef.current.clear.mockReset();
+    mockConsoleRef.current.addResult.mockReset();
   });
 
   afterEach(() => {
@@ -663,6 +670,145 @@ test('recorded session', async ({ page }) => {
         expect(values).not.toContain('4'); // about:blank excluded
         expect(values).toContain('1');     // https://example.com included
         expect(values).toContain('2');     // chrome://newtab included
+      });
+    });
+  });
+
+  // ─── Editor mode toggle ────────────────────────────────────────────────────
+
+  describe('editor mode toggle', () => {
+    it('should render the mode toggle button showing current mode', async () => {
+      const screen = await renderToolbar({ editorMode: 'pw' });
+      const toggle = screen.container.querySelector('[data-testid="mode-toggle"]');
+      expect(toggle).not.toBeNull();
+      expect(toggle?.textContent).toBe('.pw');
+    });
+
+    it('should dispatch SET_EDITOR_MODE js when toggled from pw', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({ editorMode: 'pw', dispatch });
+
+      const toggle = screen.container.querySelector('[data-testid="mode-toggle"]') as HTMLButtonElement;
+      toggle.click();
+
+      expect(dispatch).toHaveBeenCalledWith({ type: 'SET_EDITOR_MODE', mode: 'js' });
+    });
+
+    it('should dispatch SET_EDITOR_MODE pw when toggled from js', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({ editorMode: 'js', dispatch });
+
+      const toggle = screen.container.querySelector('[data-testid="mode-toggle"]') as HTMLButtonElement;
+      toggle.click();
+
+      expect(dispatch).toHaveBeenCalledWith({ type: 'SET_EDITOR_MODE', mode: 'pw' });
+    });
+
+    it('step button is disabled in JS mode', async () => {
+      const screen = await renderToolbar({
+        editorContent: 'goto https://example.com',
+        editorMode: 'js',
+      });
+
+      const stepBtn = screen.container.querySelector('#step-btn') as HTMLButtonElement;
+      expect(stepBtn.disabled).toBe(true);
+    });
+
+    it('step button is enabled in pw mode with content', async () => {
+      const screen = await renderToolbar({
+        editorContent: 'goto https://example.com',
+        editorMode: 'pw',
+      });
+
+      const stepBtn = screen.container.querySelector('#step-btn') as HTMLButtonElement;
+      expect(stepBtn.disabled).toBe(false);
+    });
+
+    it('should call consoleRef.runScript in JS mode', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({
+        editorContent: 'document.title',
+        editorMode: 'js',
+        dispatch,
+      });
+
+      await screen.getByText('▶').click();
+
+      await vi.waitFor(() => {
+        expect(dispatch).toHaveBeenCalledWith({ type: 'RUN_START' });
+        expect(mockConsoleRef.current.runScript).toHaveBeenCalledWith('document.title');
+        expect(dispatch).toHaveBeenCalledWith({ type: 'RUN_STOP' });
+      });
+    });
+
+    it('should not call executeCommand in JS mode', async () => {
+      const screen = await renderToolbar({
+        editorContent: 'document.title',
+        editorMode: 'js',
+      });
+
+      await screen.getByText('▶').click();
+
+      await vi.waitFor(() => expect(mockConsoleRef.current.runScript).toHaveBeenCalled());
+      expect(executeCommand).not.toHaveBeenCalled();
+    });
+
+    it('should delegate to consoleRef.runScript for numeric input in JS mode', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({ editorContent: '6', editorMode: 'js', dispatch });
+
+      await screen.getByText('▶').click();
+
+      await vi.waitFor(() => {
+        expect(mockConsoleRef.current.runScript).toHaveBeenCalledWith('6');
+      });
+    });
+
+    it('should delegate to consoleRef.runScript for boolean input in JS mode', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({ editorContent: 'true', editorMode: 'js', dispatch });
+
+      await screen.getByText('▶').click();
+
+      await vi.waitFor(() => {
+        expect(mockConsoleRef.current.runScript).toHaveBeenCalledWith('true');
+      });
+    });
+
+    it('should delegate to consoleRef.runScript for undefined result in JS mode', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({ editorContent: 'void 0', editorMode: 'js', dispatch });
+
+      await screen.getByText('▶').click();
+
+      await vi.waitFor(() => {
+        expect(mockConsoleRef.current.runScript).toHaveBeenCalledWith('void 0');
+      });
+    });
+
+    it('should delegate to consoleRef.runScript for object input in JS mode', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({ editorContent: '({})', editorMode: 'js', dispatch });
+
+      await screen.getByText('▶').click();
+
+      await vi.waitFor(() => {
+        expect(mockConsoleRef.current.runScript).toHaveBeenCalledWith('({})');
+      });
+    });
+
+    it('should delegate to consoleRef.runScript for error input in JS mode', async () => {
+      const dispatch = vi.fn();
+      const screen = await renderToolbar({
+        editorContent: 'invalid()',
+        editorMode: 'js',
+        dispatch,
+      });
+
+      await screen.getByText('▶').click();
+
+      await vi.waitFor(() => {
+        expect(mockConsoleRef.current.runScript).toHaveBeenCalledWith('invalid()');
       });
     });
   });

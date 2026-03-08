@@ -85,6 +85,7 @@ The extension is **self-contained** — no external server or CLI process is req
 |------|------|---------------|----------|
 | **Launch** | `--headed` (default) | Launches new Chromium via Playwright | General automation |
 | **Connect** | `--connect [port]` | Existing Chrome with `--remote-debugging-port` | Debug running app |
+| **Bridge** | `--bridge` | Extension connects to CLI via WebSocket | Remote console — no special Chrome flags |
 
 ## Quick Start — CLI
 
@@ -176,6 +177,11 @@ echo -e "goto https://example.com\nsnapshot" | playwright-repl
 playwright-repl --connect         # default port 9222
 playwright-repl --connect 9333    # custom port
 
+# Bridge mode — extension connects to CLI (no --remote-debugging-port needed)
+playwright-repl --bridge
+playwright-repl --bridge --replay script.pw    # run a script via bridge
+playwright-repl --bridge --replay examples/   # run all .pw files in a folder
+
 ```
 
 ### CLI Options
@@ -187,10 +193,12 @@ playwright-repl --connect 9333    # custom port
 | `--persistent` | Use persistent browser profile |
 | `--profile <dir>` | Persistent profile directory |
 | `--connect [port]` | Connect to existing Chrome via CDP (default: `9222`) |
+| `--bridge` | Start WebSocket bridge server; extension connects out to CLI |
+| `--bridge-port <port>` | Bridge server port (default: `9876`) |
 | `--extension` | Launch Chrome with side panel extension and HTTP command server (legacy) |
 | `--port <number>` | Command server port for `--extension` mode (default: `6781`) |
 | `--config <file>` | Path to config file |
-| `--replay <files...>` | Replay `.pw` file(s) or folder(s) |
+| `--replay <files...>` | Replay `.pw` or `.js` file(s) or folder(s) |
 | `--record <file>` | Start REPL with recording to file |
 | `--step` | Pause between commands during replay |
 | `-q, --silent` | Suppress banner and status messages |

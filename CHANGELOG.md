@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.12.0 — WebSocket CLI Bridge
+
+**2026-03-08**
+
+### Features
+
+- **`--bridge` mode**: The CLI can now remote-control a running Chrome that has the extension installed — no `--remote-debugging-port` required. Run `playwright-repl --bridge`; the extension connects out via WebSocket and the CLI becomes a full remote console. ([#69](https://github.com/stevez/playwright-repl/issues/69), [#112](https://github.com/stevez/playwright-repl/pull/112))
+- **`--bridge --replay`**: Run `.pw` or `.js` script files through the bridge — `playwright-repl --bridge --replay script.pw`. Supports single files and directories (all `.pw`/`.js` files run in order). Exits with code 0/1 for CI use.
+- **JSON pretty-print**: Object results from `run-code` / `swDebugEval` are printed as colorized JSON in the terminal.
+- **Screenshot to file**: `screenshot` results are saved to `~/pw-screenshots/` and the path is printed.
+
+---
+
 ## v0.11.0 — JS Mode, Step Debugger
 
 **2026-03-08**

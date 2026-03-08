@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.11.0 — JS Mode, Step Debugger
+
+**2026-03-08**
+
+### Features
+
+- **JS mode in script editor**: Toggle between `.pw` (keyword) and `JS` (JavaScript) modes in the toolbar. In JS mode the editor gains JavaScript syntax highlighting and executes lines via `swDebugEval` directly. ([#91](https://github.com/stevez/playwright-repl/pull/91), [#107](https://github.com/stevez/playwright-repl/pull/107))
+- **JS mode recording**: When recording in JS mode, the recorder inserts JS syntax — `await page.goto(...)`, `await page.click(...)` — instead of `.pw` keywords. ([#108](https://github.com/stevez/playwright-repl/pull/108))
+- **JS step debugger**: Step through JS scripts line-by-line with the Step button. The current line is highlighted in the editor. A debug session is created per run; clicking Stop cancels mid-run. ([#109](https://github.com/stevez/playwright-repl/pull/109), closes [#73](https://github.com/stevez/playwright-repl/issues/73))
+
+### Removed
+
+- **Export to Playwright**: The `.pw` → TypeScript export feature has been removed. The converter was unreliable for complex commands and covered only a subset of the command set. ([#110](https://github.com/stevez/playwright-repl/pull/110))
+
+### Fixes
+
+- **Recording cursor order**: Recorded actions no longer land before the initial `goto` line. The goto command now uses `insertAtCursor` directly — same code path as subsequent actions — so ordering is always correct. ([#111](https://github.com/stevez/playwright-repl/pull/111))
+
+---
+
 ## v0.10.0 — Console Pane (Chrome DevTools Style)
 
 **2026-03-07**

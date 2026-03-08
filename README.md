@@ -131,7 +131,7 @@ Once loaded:
 2. The panel auto-attaches to the active tab — the status dot turns green
 3. Type commands in the panel — same syntax as CLI
 
-The extension panel includes a REPL input, script editor, visual recorder, and export to Playwright tests.
+The extension panel includes a REPL input, script editor, visual recorder, and JS step debugger.
 
 **Open as popup window:** Right-click the extension icon → **Options** → select "Popup Window". Click the icon and the REPL opens as a standalone 450×700 window attached to the current tab. Use the **tab switcher** in the toolbar to re-attach to a different tab at any time.
 
@@ -431,9 +431,9 @@ The extension opens as a Chrome **side panel** by default. To switch to a standa
 The panel UI is the same in both modes:
 
 - **Console** — Chrome DevTools-style REPL: type a command, result appears inline. Supports `.pw` syntax highlighting, autocomplete, command history, CDP object inspection, screenshots, and code block output.
-- **Script editor** — write multi-line `.pw` scripts with line numbers, run all or step through
-- **Visual recorder** — click Record, interact with the page, recorded commands appear in the script editor automatically
-- **Export** — convert `.pw` commands to Playwright TypeScript test code
+- **Script editor** — write multi-line `.pw` or JS scripts with line numbers; run all or step through line-by-line
+- **JS mode** — toggle between `.pw` keyword mode and JavaScript mode in the toolbar; JS mode uses full Playwright API syntax (`page.goto(...)`, `page.click(...)`) and highlights the current line while stepping
+- **Visual recorder** — click Record, interact with the page, recorded commands appear in the script editor automatically (in both `.pw` and JS formats)
 - **Tab switcher** — toolbar dropdown lets you re-attach the panel to any open browser tab without reopening
 - **Light/dark themes** — matches your DevTools theme
 
@@ -447,18 +447,6 @@ Click the **Record** button in the toolbar, then interact with the page normally
 - **Key presses** — Enter, Tab, Escape
 
 Recorded commands appear in the script editor in real time. Click **Stop** when done.
-
-### Export to Playwright
-
-The extension can export `.pw` commands to Playwright TypeScript:
-
-```
-# .pw commands                    → Playwright TypeScript
-goto https://example.com          → await page.goto("https://example.com");
-click "Submit"                    → await page.getByText("Submit").click();
-fill "Email" "test@example.com"   → await page.getByLabel("Email").fill("test@example.com");
-verify-text "Success"             → await expect(page.getByText("Success")).toBeVisible();
-```
 
 ### Connect Mode
 

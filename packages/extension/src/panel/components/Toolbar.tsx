@@ -2,16 +2,16 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import type { PanelState, Action } from "@/reducer";
 import { exportToPlaywright, jsonlToRepl } from '@/lib/converter';
 import { connectWithRetry, attachToTab } from '@/lib/bridge';
-import { runAndDispatch, runJsScript } from '@/lib/run';
-import { SunIcon, MoonIcon, FolderOpenIcon, SaveIcon, RecordIcon, StopIcon, ExportIcon } from './Icons';
+import { runAndDispatch, runJsScript, runJsScriptStep } from '@/lib/run';
+import { SunIcon, MoonIcon, FolderOpenIcon, SaveIcon, RecordIcon, StopIcon, ExportIcon, StepForwardIcon, AbortIcon } from './Icons';
 import type { EditorHandle } from './CodeMirrorEditorPane';
 
-interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'fileName' | 'editorMode' | 'stepLine' | 'attachedUrl' | 'attachedTabId' | 'isAttaching' | 'isRunning'> {
+interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'editorMode' | 'stepLine' | 'attachedUrl' | 'attachedTabId' | 'isAttaching' | 'isRunning' | 'isStepDebugging'> {
     dispatch: React.Dispatch<Action>,
     editorRef: React.RefObject<EditorHandle | null>,
 };
 
-function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, attachedTabId, isAttaching, isRunning, dispatch, editorRef }: ToolbarProps) {
+function Toolbar({ editorContent, editorMode, stepLine, attachedUrl, attachedTabId, isAttaching, isRunning, isStepDebugging, dispatch, editorRef }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const recorderPortRef = useRef<chrome.runtime.Port | null>(null);
     const prevActionCountRef = useRef(0);
@@ -107,7 +107,9 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
         const fileReader = new FileReader();
         fileReader.onload = () => {
             dispatch({ type: 'EDIT_EDITOR_CONTENT', content: fileReader.result as string })
-            dispatch({ type: 'SET_FILENAME', fileName: file.name })
+            if (file.name.endsWith('.js')) dispatch({ type: 'SET_EDITOR_MODE', mode: 'js' });
+            else if (file.name.endsWith('.pw') || file.name.endsWith('.txt')) dispatch({ type: 'SET_EDITOR_MODE', mode: 'pw' });
+            fileInputRef.current!.value = '';
         }
         fileReader.onerror = () => {
             dispatch({ type: 'ADD_LINE', line: { text: 'Failed to read file', type: 'error' } })
@@ -122,9 +124,7 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
     async function handleSave() {
         const isJs = editorMode === 'js';
         const ext = isJs ? '.js' : '.pw';
-        const defaultName = fileName
-            ? (isJs && fileName.endsWith('.pw') ? fileName.replace(/\.pw$/, '.js') : fileName)
-            : `commands-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}${ext}`;
+        const defaultName = `commands-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}${ext}`;
         const opts = {
             suggestedName: defaultName,
             types: isJs
@@ -136,7 +136,6 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
             const writable = await fileHandle.createWritable();
             await writable.write(editorContent);
             await writable.close();
-            dispatch({ type: 'SET_FILENAME', fileName: fileHandle.name })
         } catch (e: unknown) {
             if (e instanceof Error && e.name !== 'AbortError') {
                 dispatch({ type: 'ADD_LINE', line: { text: 'Save failed: ' + e.message, type: 'error' } })
@@ -174,6 +173,9 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
 
     function handleStop() {
         cancelRunRef.current = true;
+        if (isStepDebugging) {
+            chrome.runtime.sendMessage({ type: 'debug-stop' }).catch(() => {});
+        }
         dispatch({ type: 'RUN_STOP' });
     }
 
@@ -189,6 +191,19 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
     }
 
     async function handleStep() {
+        if (isStepDebugging) {
+            // JS debug mode: advance past the current breakpoint
+            chrome.runtime.sendMessage({ type: 'debug-resume' }).catch(() => {});
+            return;
+        }
+        if (editorMode === 'js') {
+            // Start JS debug session on first press
+            dispatch({ type: 'RUN_START', stepDebug: true });
+            await runJsScriptStep(editorContent, dispatch);
+            dispatch({ type: 'RUN_STOP' });
+            return;
+        }
+        // pw step mode: run next line via runAndDispatch
         if (stepLine === -1) {
             const nextStepLine = findExecutableIndex(0);
             if (nextStepLine !== -1) dispatch({ type: 'STEP_INIT', stepLine: nextStepLine });
@@ -320,7 +335,7 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
             <div id="toolbar-left" className="flex flex-wrap gap-1 items-center">
                 <input
                     type="file"
-                    accept='.pw,.txt'
+                    accept='.pw,.js,.txt'
                     ref={fileInputRef}
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
@@ -337,11 +352,11 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
                 >
                     {isRecording ? <StopIcon /> : <RecordIcon />}
                 </button>
-                {isRunning
-                    ? <button id="stop-run-btn" data-testid="stop-run-btn" title="Stop run" onClick={handleStop}><StopIcon /></button>
+                {(isRunning || stepLine !== -1)
+                    ? <button id="stop-run-btn" data-testid="stop-run-btn" title={isStepDebugging ? "Abort" : "Stop"} onClick={handleStop}>{isStepDebugging ? <AbortIcon /> : <StopIcon />}</button>
                     : <button id="run-btn" data-testid="run-btn" title="Run script (Ctrl+Enter)" disabled={!editorContent.trim()} onClick={handleRun}>&#9654;</button>
                 }
-                <button id="step-btn" title="Step: run next line" disabled={!editorContent.trim() || editorMode === 'js'} onClick={handleStep}>&#9655;</button>
+                <button id="step-btn" data-testid="step-btn" title={editorMode === 'js' ? (isStepDebugging ? 'Step: advance to next line' : 'Step: start debug session') : 'Step: run next line'} disabled={!editorContent.trim() || (isRunning && !isStepDebugging)} onClick={handleStep}><StepForwardIcon /></button>
                 <button id="export-btn" title="Export as Playwright test" disabled={!editorContent.trim() || editorMode === 'js'} onClick={handleExport}><ExportIcon /></button>
                 <span className="w-px h-4.5 bg-(--color-toolbar-sep) mx-1"></span>
                 <button
@@ -385,7 +400,6 @@ function Toolbar({ editorContent, fileName, editorMode, stepLine, attachedUrl, a
                 <button id="attach-btn" title="Attach to active tab" disabled={isAttaching || !canAttach || availableTabs.some(t => t.id === selectedTabId && isInternalUrl(t.url))} onClick={handleAttach}>
                     Attach
                 </button>
-                <span id="file-info" className="text-(--text-dim) text-[11px]">{fileName}</span>
             </div>
         </div>
     )

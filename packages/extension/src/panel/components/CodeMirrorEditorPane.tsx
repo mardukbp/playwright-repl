@@ -57,11 +57,8 @@ function CodeMirrorEditorPane({ editorContent, editorMode, currentRunLine, lineR
         if(!view) return;
         if(view.state.doc.toString() === editorContent) return;
         externalUpdateRef.current = true;
-        view.dispatch({
-            changes: { from: 0, to: view.state.doc.length, insert: editorContent },
-            selection: { anchor: editorContent.length },
-            scrollIntoView: true,
-        });
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: editorContent } });
+        view.dispatch({ selection: { anchor: view.state.doc.length }, scrollIntoView: true });
         externalUpdateRef.current = false;
         view.focus();
     }, [editorContent]);

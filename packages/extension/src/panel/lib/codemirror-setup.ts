@@ -51,7 +51,7 @@ const pwTheme = EditorView.theme({
         overflow: 'auto',
     },
     '.cm-run-line': {
-        background: 'var(--bg-line-highlight)'
+        background: 'var(--bg-run-line)'
     },
     '.cm-tooltip-autocomplete': {
         backgroundColor: 'var(--bg-toolbar)',
@@ -128,7 +128,7 @@ const resultGutter = gutter({
 export function dispatchRunState(
     view: EditorView,
     runLine: number,
-    lineResults: (string | null)[]
+    lineResults: (string | null)[],
 ) {
     view.dispatch({
         effects: [

@@ -3,9 +3,9 @@ import type { OutputLine } from "@/types"
 export type PanelState = {
   outputLines: OutputLine[]
   editorContent: string
-  fileName: string
   editorMode: 'pw' | 'js'
   isRunning: boolean
+  isStepDebugging: boolean
   currentRunLine: number      // -1 = none
   stepLine: number            // -1 = not stepping
   passCount: number
@@ -24,8 +24,7 @@ export type Action =
    | { type: 'COMMAND_ERROR', line: OutputLine }
    | { type: 'EDIT_EDITOR_CONTENT', content: string }
    | { type: 'APPEND_EDITOR_CONTENT', command: string}
-   | { type: 'SET_FILENAME', fileName: string }
-   | { type: 'RUN_START'}
+   | { type: 'RUN_START', stepDebug?: boolean }
    | { type: 'RUN_STOP' }
    | { type: 'SET_RUN_LINE', currentRunLine: number }
    | { type: 'STEP_INIT', stepLine: number }
@@ -40,9 +39,9 @@ export type Action =
 export const initialState : PanelState = {
     outputLines: [],
     editorContent: '',
-    fileName: '',
     editorMode: 'pw',
     isRunning: false,
+    isStepDebugging: false,
     currentRunLine: -1,
     stepLine: -1,
     passCount: 0,
@@ -79,21 +78,20 @@ export function panelReducer(state: PanelState, action: Action): PanelState {
             const separator = state.editorContent && !state.editorContent.endsWith('\n') ? '\n' : '';
             return { ...state, editorContent: state.editorContent + separator + action.command };
         }
-        case 'SET_FILENAME':
-            return { ...state, fileName: action.fileName }
         case 'RUN_START': {
             const lineCount = state.editorContent.split('\n').length;
             return {
                 ...state,
                 isRunning: true,
-                currentRunLine: 0,
+                isStepDebugging: action.stepDebug ?? false,
+                currentRunLine: -1,
                 passCount: 0,
                 failCount: 0,
                 lineResults: new Array(lineCount).fill(null)
             }
         }
         case 'RUN_STOP':
-            return { ...state, isRunning: false, currentRunLine: -1}
+            return { ...state, isRunning: false, isStepDebugging: false, currentRunLine: -1, stepLine: -1 }
         case 'SET_RUN_LINE':
             return { ...state, currentRunLine: action.currentRunLine}
         case 'STEP_INIT': {

@@ -218,8 +218,7 @@ function Toolbar({ editorContent, editorMode, stepLine, attachedUrl, attachedTab
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleRecordedSources = useCallback((sources: any[]) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const jsonlSource = sources.find((s: any) => s.id === 'jsonl') || sources[0];
+        const jsonlSource = sources.find(s => s.id === 'jsonl') || sources[0];
         if (!jsonlSource?.actions?.length) return;
         const prevCount = prevActionCountRef.current;
         const newActions = (jsonlSource.actions as string[]).slice(prevCount);
@@ -234,13 +233,10 @@ function Toolbar({ editorContent, editorMode, stepLine, attachedUrl, attachedTab
             }
         }
 
-        // Editor: insert only new actions at cursor; skip openPage (handleRecord already adds goto)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isOpenPage = (jsonl: string) => { try { return JSON.parse(jsonl).name === 'openPage'; } catch { return false; } };
 
         if (editorMode === 'js') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const jsSource = sources.find((s: any) => s.id === 'javascript');
+            const jsSource = sources.find(s => s.id === 'javascript');
             const jsLines = newActions.flatMap((a, i) => {
                 if (isOpenPage(a)) return [];
                 const jsAction = (jsSource?.actions as string[] | undefined)?.[prevCount + i];

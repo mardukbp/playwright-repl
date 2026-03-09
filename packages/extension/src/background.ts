@@ -10,7 +10,7 @@ import type { PwReplSettings } from './panel/lib/settings';
 // Disable auto-open so action.onClicked fires (Chrome persists this across reloads)
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
 
-let cachedSettings: PwReplSettings = { openAs: 'sidepanel' };
+let cachedSettings: Partial<PwReplSettings> = { openAs: 'sidepanel' };
 loadSettings().then(s => cachedSettings = s).catch(() => {});
 
 chrome.storage.onChanged.addListener((changes, area) => {

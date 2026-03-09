@@ -13,15 +13,15 @@
 
 - [x] **Route `executeCommand` through `swDebugEval` instead of `sendMessage`** — Done: `bridge.ts:executeCommand` now calls `swDebugEval(jsExpr)` directly instead of `chrome.runtime.sendMessage`.
 - [x] **Replace sandbox.html with `swDebugEval` for `run-code`** — Done: `sandbox.html`, `sandbox-runner.ts`, and all proxy infrastructure removed. `run-code` uses `swDebugEval` directly.
-- [ ] **WebSocket CLI bridge** ([#69](https://github.com/stevez/playwright-repl/issues/69)) — External terminal REPL drives extension via WebSocket without `--remote-debugging-port`.
+- [x] **WebSocket CLI bridge** ([#69](https://github.com/stevez/playwright-repl/issues/69)) — External terminal REPL drives extension via WebSocket without `--remote-debugging-port`.
 
 ## Big Ideas
 
 - [ ] **Script test runner** ([#70](https://github.com/stevez/playwright-repl/issues/70)) — "Run all" button streams pass/fail per `await` statement with CM6 gutter decorations.
 - [ ] **AI test generation** ([#71](https://github.com/stevez/playwright-repl/issues/71)) — Natural language → `expect()` assertions via Claude API + snapshot context.
-- [ ] **AI browser agent** ([#72](https://github.com/stevez/playwright-repl/issues/72)) — Claude operates the browser step-by-step via `swDebugEval` pipeline.
-- [ ] **MCP `run_script` tool** — Add a second MCP tool that accepts a multi-line `.pw` script, runs each line sequentially, and returns combined results. Useful for replaying known `.pw` files without per-step round trips. Single `run_command` remains preferred for AI agents (observe-and-adapt per step).
-- [ ] **Step debugger** ([#73](https://github.com/stevez/playwright-repl/issues/73)) — Step through scripts line by line with CM6 highlighting and a variables panel.
+- [x] **AI browser agent** ([#72](https://github.com/stevez/playwright-repl/issues/72)) — Claude operates the browser step-by-step via `swDebugEval` pipeline. Shipped as `@playwright-repl/mcp` in v0.13.0.
+- [ ] **MCP `run_script` tool** ([#114](https://github.com/stevez/playwright-repl/issues/114)) — Add a second MCP tool that accepts a multi-line `.pw` script, runs each line sequentially, and returns combined results. Useful for replaying known `.pw` files without per-step round trips. Single `run_command` remains preferred for AI agents (observe-and-adapt per step).
+- [x] **Step debugger** ([#73](https://github.com/stevez/playwright-repl/issues/73)) — Step through scripts line by line with CM6 highlighting and a variables panel.
 
 ## Medium Priority
 
@@ -54,11 +54,11 @@
 - [ ] **Richer console output types** ([#89](https://github.com/stevez/playwright-repl/issues/89)) — info/warning banners, code-block highlighting, screenshot rendering.
 - [ ] **Terminal → console output parity** ([#90](https://github.com/stevez/playwright-repl/issues/90)) — Terminal commands stream results into console too.
 - [ ] **Editor JS mode** ([#91](https://github.com/stevez/playwright-repl/issues/91)) — `.pw`/`JS` toggle; JS mode uses `swDebugEval` directly.
-- [ ] **Language mode setting in preferences** — Add `languageMode` to `PwReplSettings` (default `.pw`), exposed as a dropdown in `PreferencesForm`. Persisted via `chrome.storage.local`. Editor picks up the setting on load.
-- [ ] **Capture `console.log` in JS mode** — Intercept `console.log`/`console.error` in `swDebugEval` wrapper and route output to the panel console instead of service worker DevTools.
-- [ ] **Recording inserts actions before `goto` in JS mode** — When recording starts, the initial `goto` is appended to the editor but cursor-tracking may cause subsequent recorded actions to land before the `goto` line instead of after it.
-- [ ] **JS mode hangs on 2nd `await` line** — Multi-`await` scripts (e.g. `page.getByLabel(...).fill(...)` followed by another `await`) hang after the first line when run via `runJsScript`/`swDebugEval`. Root cause: likely a timing/resumption issue in the AsyncFunction wrapper inside the service worker.
-- [ ] **`localstorage-clear` command missing** — No pw command to clear localStorage. Workaround: `localStorage.clear()` in JS mode or via `eval` in the console.
+- [ ] **Language mode setting in preferences** ([#115](https://github.com/stevez/playwright-repl/issues/115)) — Add `languageMode` to `PwReplSettings` (default `.pw`), exposed as a dropdown in `PreferencesForm`. Persisted via `chrome.storage.local`. Editor picks up the setting on load.
+- [ ] **Capture `console.log` in JS mode** ([#116](https://github.com/stevez/playwright-repl/issues/116)) — Intercept `console.log`/`console.error` in `swDebugEval` wrapper and route output to the panel console instead of service worker DevTools.
+- [ ] **Recording inserts actions before `goto` in JS mode** ([#117](https://github.com/stevez/playwright-repl/issues/117)) — When recording starts, the initial `goto` is appended to the editor but cursor-tracking may cause subsequent recorded actions to land before the `goto` line instead of after it.
+- [ ] **JS mode hangs on 2nd `await` line** ([#118](https://github.com/stevez/playwright-repl/issues/118)) — Multi-`await` scripts (e.g. `page.getByLabel(...).fill(...)` followed by another `await`) hang after the first line when run via `runJsScript`/`swDebugEval`. Root cause: likely a timing/resumption issue in the AsyncFunction wrapper inside the service worker.
+- [ ] **`localstorage-clear` command missing** ([#119](https://github.com/stevez/playwright-repl/issues/119)) — No pw command to clear localStorage. Workaround: `localStorage.clear()` in JS mode or via `eval` in the console.
 - [ ] **Console recording / export** ([#92](https://github.com/stevez/playwright-repl/issues/92)) — "Copy session" exports console inputs as `.pw`/JS file.
 
 ## Console (Phase 3 — terminal replacement)
@@ -69,8 +69,8 @@
 
 - [ ] **Recorder: merge fill + Enter into `fill --submit`** ([#94](https://github.com/stevez/playwright-repl/issues/94)) — Absorb `press Enter` after `fill` in `recorder.ts`.
 - [x] **`highlight` command** ([#14](https://github.com/stevez/playwright-repl/issues/14))
-- [ ] **Migrate monorepo to pnpm** ([#95](https://github.com/stevez/playwright-repl/issues/95)) — `workspace:*` protocol, no more manual version sync.
-- [ ] **Improve README structure** ([#96](https://github.com/stevez/playwright-repl/issues/96)) — Per-package READMEs with root index.
+- [x] **Migrate monorepo to pnpm** ([#95](https://github.com/stevez/playwright-repl/issues/95)) — `workspace:*` protocol, no more manual version sync.
+- [x] **Improve README structure** ([#96](https://github.com/stevez/playwright-repl/issues/96)) — Per-package READMEs with root index.
 - [ ] **Consolidate `commands.ts` and `page-scripts.ts` into `src/panel/lib/`** ([#100](https://github.com/stevez/playwright-repl/issues/100)) — Merge both files, eliminate `../../` imports, single source of truth for aliases. Closes #97.
 - [x] **Convert to TypeScript**
 - [x] **Extension server (Phase 8)**

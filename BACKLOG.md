@@ -56,8 +56,8 @@
 - [ ] **Editor JS mode** ([#91](https://github.com/stevez/playwright-repl/issues/91)) — `.pw`/`JS` toggle; JS mode uses `swDebugEval` directly.
 - [ ] **Language mode setting in preferences** ([#115](https://github.com/stevez/playwright-repl/issues/115)) — Add `languageMode` to `PwReplSettings` (default `.pw`), exposed as a dropdown in `PreferencesForm`. Persisted via `chrome.storage.local`. Editor picks up the setting on load.
 - [ ] **Capture `console.log` in JS mode** ([#116](https://github.com/stevez/playwright-repl/issues/116)) — Intercept `console.log`/`console.error` in `swDebugEval` wrapper and route output to the panel console instead of service worker DevTools.
-- [ ] **Recording inserts actions before `goto` in JS mode** ([#117](https://github.com/stevez/playwright-repl/issues/117)) — When recording starts, the initial `goto` is appended to the editor but cursor-tracking may cause subsequent recorded actions to land before the `goto` line instead of after it.
-- [ ] **JS mode hangs on 2nd `await` line** ([#118](https://github.com/stevez/playwright-repl/issues/118)) — Multi-`await` scripts (e.g. `page.getByLabel(...).fill(...)` followed by another `await`) hang after the first line when run via `runJsScript`/`swDebugEval`. Root cause: likely a timing/resumption issue in the AsyncFunction wrapper inside the service worker.
+- [x] **Recording inserts actions before `goto` in JS mode** ([#117](https://github.com/stevez/playwright-repl/issues/117)) — Fixed.
+- [x] **JS mode hangs on 2nd `await` line** ([#118](https://github.com/stevez/playwright-repl/issues/118)) — Fixed.
 - [ ] **`localstorage-clear` command missing** ([#119](https://github.com/stevez/playwright-repl/issues/119)) — No pw command to clear localStorage. Workaround: `localStorage.clear()` in JS mode or via `eval` in the console.
 - [ ] **Console recording / export** ([#92](https://github.com/stevez/playwright-repl/issues/92)) — "Copy session" exports console inputs as `.pw`/JS file.
 

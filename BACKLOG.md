@@ -22,6 +22,8 @@
 - [x] **AI browser agent** ([#72](https://github.com/stevez/playwright-repl/issues/72)) — Claude operates the browser step-by-step via `swDebugEval` pipeline. Shipped as `@playwright-repl/mcp` in v0.13.0.
 - [x] **MCP `run_script` tool** ([#114](https://github.com/stevez/playwright-repl/issues/114)) — `run_script(script, language)` runs `.pw` scripts line-by-line or JS blocks as a single eval. Extension owns the execution logic via WebSocket `type: 'script'` message.
 - [x] **Step debugger** ([#73](https://github.com/stevez/playwright-repl/issues/73)) — Step through scripts line by line with CM6 highlighting and a variables panel.
+- [ ] **`explore-page` MCP prompt** — Prompt template: AI navigates to a URL, takes snapshot + screenshot, summarizes page structure (forms, nav, key elements).
+- [ ] **`convert-script` MCP prompt** — Prompt template: AI converts between `.pw` keyword syntax and Playwright JavaScript (both directions), runs the converted script, and iterates until it passes.
 
 ## Medium Priority
 

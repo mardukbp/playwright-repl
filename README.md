@@ -6,10 +6,10 @@ Interactive browser automation powered by Playwright — use it from your **term
 
 | Package | Description |
 |---------|-------------|
-| [`playwright-repl`](packages/cli/README.md) | CLI — terminal REPL with keyword commands, recording, replay, and piping |
-| [Dramaturg](packages/extension/README.md) | Chrome extension — console, script editor, recorder, CDP object tree |
-| [`@playwright-repl/mcp`](packages/mcp/README.md) | MCP server — AI agents control your real Chrome browser |
-| [`@playwright-repl/core`](packages/core/README.md) | Shared engine, parser, and utilities |
+| [`playwright-repl`](https://github.com/stevez/playwright-repl/tree/main/packages/cli/README.md) | CLI — terminal REPL with keyword commands, recording, replay, and piping |
+| [Dramaturg](https://github.com/stevez/playwright-repl/tree/main/packages/extension/README.md) | Chrome extension — console, script editor, recorder, CDP object tree |
+| [`@playwright-repl/mcp`](https://github.com/stevez/playwright-repl/tree/main/packages/mcp/README.md) | MCP server — AI agents control your real Chrome browser |
+| [`@playwright-repl/core`](https://github.com/stevez/playwright-repl/tree/main/packages/core/README.md) | Shared engine, parser, and utilities |
 
 ---
 
@@ -37,7 +37,7 @@ Two modes:
 | **Standalone** | *(default)* | Launches new Chromium via Playwright |
 | **Bridge** | `--bridge` | Your real Chrome via Dramaturg extension |
 
-→ **[Full CLI docs → packages/cli/README.md](packages/cli/README.md)**
+→ **[Full CLI docs](https://github.com/stevez/playwright-repl/tree/main/packages/cli/README.md)**
 
 ---
 
@@ -58,7 +58,7 @@ cd packages/extension && npm run build
 | Object tree | Expandable CDP object tree, just like Chrome DevTools |
 | Side panel & popup | Opens as side panel by default; switch to popup in Options |
 
-→ **[Full extension docs → packages/extension/README.md](packages/extension/README.md)**
+→ **[Full extension docs](https://github.com/stevez/playwright-repl/tree/main/packages/extension/README.md)**
 
 ---
 
@@ -86,7 +86,7 @@ playwright-repl-mcp   # extension connects automatically
 
 > Playwright MCP and Playwriter control Chrome from outside via CDP relay. `@playwright-repl/mcp` runs Playwright natively inside Chrome via `playwright-crx` — enabling `expect()`, recording, and a full DevTools panel alongside AI.
 
-→ **[Full MCP docs → packages/mcp/README.md](packages/mcp/README.md)**
+→ **[Full MCP docs](https://github.com/stevez/playwright-repl/tree/main/packages/mcp/README.md)**
 
 ---
 

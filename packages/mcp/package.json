@@ -12,6 +12,9 @@
     "scripts": {
         "build": "tsc --build tsconfig.build.json"
     },
+    "publishConfig": {
+        "access": "public"
+    },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.10.0",
         "@playwright-repl/core": "workspace:*",

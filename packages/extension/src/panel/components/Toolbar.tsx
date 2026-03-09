@@ -5,6 +5,7 @@ import { connectWithRetry, attachToTab } from '@/lib/bridge';
 import { runAndDispatch, runJsScript, runJsScriptStep } from '@/lib/run';
 import { SunIcon, MoonIcon, FolderOpenIcon, SaveIcon, RecordIcon, StopIcon, StepForwardIcon, AbortIcon } from './Icons';
 import type { EditorHandle } from './CodeMirrorEditorPane';
+import { asLocator } from '@/lib/locator/locatorGenerators';
 
 interface ToolbarProps extends Pick<PanelState, 'editorContent' | 'editorMode' | 'stepLine' | 'attachedUrl' | 'attachedTabId' | 'isAttaching' | 'isRunning' | 'isStepDebugging'> {
     dispatch: React.Dispatch<Action>,
@@ -242,7 +243,8 @@ function Toolbar({ editorContent, editorMode, stepLine, attachedUrl, attachedTab
                 const jsAction = (jsSource?.actions as string[] | undefined)?.[prevCount + i];
                 if (!jsAction) return [];
                 return jsAction.split('\n')
-                    .map((line: string) => line.replace(/^ {2}/, ''))          // strip 2-space base offset
+                    .map((line: string) => line.replace(/^ {2}/, ''))           // strip 2-space base offset
+                    .map((line: string) => line.replace(/^\/\/ (await expect\()/, '$1')) // uncomment assertions
                     .filter((line: string) => !line.startsWith('const page =')); // page already exists
             }).filter(Boolean);
             if (jsLines.length) editorRef.current?.insertAtCursor(jsLines.join('\n'));
@@ -303,6 +305,13 @@ function Toolbar({ editorContent, editorMode, stepLine, attachedUrl, attachedTab
         recorderPortRef.current!.onMessage.addListener((msg: any) => {
             if (msg.type === 'recorder' && msg.method === 'setSources') {
                 handleRecordedSources(msg.sources);
+            }
+            if (msg.type === 'recorder' && msg.method === 'elementPicked') {
+                const selector = msg.elementInfo?.selector;
+                if (selector) {
+                    const locator = asLocator(selector);
+                    dispatch({ type: 'ADD_LINE', line: { text: locator, type: 'info' } });
+                }
             }
         });
 

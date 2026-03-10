@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.15.1 — WebSocket Origin Check
+
+**2026-03-09**
+
+### Security
+
+- **Block cross-origin WebSocket connections**: The bridge server now rejects WebSocket upgrade requests from web page origins (`http://`, `https://`). Only `chrome-extension://` origins and Node.js clients (no origin header) are accepted. Prevents malicious websites from connecting to `ws://localhost:9876` to control the browser. ([#130](https://github.com/stevez/playwright-repl/issues/130), [#131](https://github.com/stevez/playwright-repl/pull/131))
+
+---
+
 ## v0.15.0 — Panel-Free MCP Bridge
 
 **2026-03-09**

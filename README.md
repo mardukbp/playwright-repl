@@ -72,7 +72,7 @@ The MCP server pairs with the Dramaturg extension to give AI agents access to yo
 
 ```bash
 npm install -g @playwright-repl/mcp
-playwright-repl-mcp   # extension connects automatically
+playwright-repl-mcp   # extension connects automatically — no side panel needed
 ```
 
 | | `@playwright-repl/mcp` | Playwright MCP | Playwriter |

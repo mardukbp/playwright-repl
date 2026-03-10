@@ -97,7 +97,7 @@ The extension can act as the browser end of a CLI terminal session:
 playwright-repl --bridge   # start the CLI bridge server
 ```
 
-Open the side panel → the extension connects automatically. Your terminal becomes a remote console for the browser — type commands in the CLI, they execute in your real Chrome session.
+The extension connects automatically — no need to open the side panel. Your terminal becomes a remote console for the browser — type commands in the CLI, they execute in your real Chrome session.
 
 See [packages/cli/README.md](../cli/README.md) for CLI setup.
 
@@ -110,7 +110,7 @@ npm install -g @playwright-repl/mcp
 playwright-repl-mcp   # starts the MCP bridge server
 ```
 
-Open the side panel → the extension connects automatically. The AI agent can then call `run_command` to execute any keyword, Playwright API, or JavaScript command in your real Chrome session.
+The extension connects automatically — no side panel needed. The AI agent can then call `run_command` to execute any keyword, Playwright API, or JavaScript command in your real Chrome session.
 
 See [packages/mcp/README.md](../mcp/README.md) for full MCP setup and Claude Desktop / Claude Code configuration.
 
@@ -162,16 +162,18 @@ Side Panel (React)
   Chrome tab
 ```
 
-### background.ts — Lifecycle Only
+### background.ts — Lifecycle + Bridge
 
 | Message type | Action |
 |---|---|
+| `bridge-command` | Parses and executes CLI/MCP commands via self-debug eval |
 | `attach` | `crxApp.attach(tabId)` — connects playwright-crx to the tab |
 | `record-start` | Injects recorder into the active tab |
 | `record-stop` | Disconnects recorder port |
 | `health` | Returns `{ ok: !!crxApp }` |
 | `cdp-evaluate` | Raw CDP `Runtime.evaluate` for the Console object tree |
 | `cdp-get-properties` | Raw CDP `Runtime.getProperties` for the Console object tree |
+| `get-bridge-port` | Returns bridge port from `chrome.storage` (for offscreen doc) |
 
 ### File Structure
 

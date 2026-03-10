@@ -36,7 +36,7 @@ Claude Desktop / Claude Code (or any MCP client)
   ↕ MCP (stdio)
 playwright-repl MCP server
   ↕ WebSocket bridge
-Chrome extension (panel page)
+Chrome extension (offscreen document → service worker)
   ↕ CDP / chrome.debugger
 Playwright running in your real Chrome session
 ```
@@ -82,16 +82,17 @@ claude mcp add playwright-repl playwright-repl-mcp
 
 ### 4. Connect
 
-Open Chrome → click the **Dramaturg** icon to open the side panel. The extension connects to the MCP server automatically. You're ready.
+The extension connects to the MCP server automatically — no need to open the side panel. Just make sure Chrome is running with the Dramaturg extension installed.
 
 ## Dramaturg — The Extension
 
-Dramaturg is the other half of the system — it's what gives the MCP server access to your real browser session. While the MCP server is running, the Dramaturg panel acts as the live bridge between AI commands and Chrome.
+Dramaturg is the other half of the system — it's what gives the MCP server access to your real browser session.
 
 ### What the extension does
 
 - **Runs Playwright inside Chrome** — uses `playwright-crx` and `chrome.debugger` to execute commands directly in your existing session, no separate browser needed. Because Playwright runs inside the browser rather than relaying through an external process, the entire AI → command → result loop is faster.
-- **Connects automatically** — opens a WebSocket connection to the MCP server as soon as the side panel is visible; reconnects if the connection drops
+- **Connects automatically** — a persistent offscreen document maintains the WebSocket connection to the MCP server; reconnects if the connection drops. No side panel needed.
+- **Auto-attaches** — on the first command, automatically attaches to the active Chrome tab
 - **Executes commands** — receives `run_command` calls from the AI and runs them against the active tab
 
 ### Using the extension alongside AI
@@ -108,7 +109,7 @@ The extension panel is more than just a bridge — it's a full REPL you can use 
 
 The extension connects to the MCP server on port `9876` by default. To check or change the port: extension icon → **Options** → **Bridge Port**. Changes take effect after reopening the panel.
 
-When the panel is open and connected, the MCP server logs `Extension connected` to stderr. When the panel is closed or Chrome is not open, `run_command` returns: `Browser not connected. Open Chrome with Dramaturg — it connects automatically.`
+When the extension is connected, the MCP server logs `Extension connected` to stderr. When Chrome is not open or the extension is not installed, `run_command` returns: `Browser not connected. Open Chrome with Dramaturg — it connects automatically.`
 
 ## Tool: `run_command`
 

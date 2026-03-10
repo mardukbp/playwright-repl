@@ -53,7 +53,7 @@ playwright-repl --bridge --replay examples/   # replay all .pw files
 playwright-repl --bridge --bridge-port 9877   # custom port (default 9876)
 ```
 
-The extension connects automatically when the side panel is opened. Once connected, all commands run against the active tab in your real browser.
+The extension connects automatically — no need to open the side panel. Once connected, all commands run against the active tab in your real browser.
 
 > Requires the playwright-repl Chrome extension — see [packages/extension/README.md](../extension/README.md) for setup.
 

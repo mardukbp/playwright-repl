@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.15.0 — Panel-Free MCP Bridge
+
+**2026-03-09**
+
+### Features
+
+- **MCP works without the side panel**: The CLI/MCP bridge WebSocket now lives in a persistent offscreen document instead of the panel. The extension auto-connects to the bridge server and auto-attaches to the active tab on the first command — no need to open the side panel at all. ([#127](https://github.com/stevez/playwright-repl/issues/127), [#129](https://github.com/stevez/playwright-repl/pull/129))
+- **Console.log capture**: `console.log()` and `console.warn()` calls from JS editor scripts now appear in the panel console with object tree expansion. ([#116](https://github.com/stevez/playwright-repl/issues/116), [#126](https://github.com/stevez/playwright-repl/pull/126))
+
+### Internal
+
+- Bridge command execution uses `chrome.debugger` self-targeting (`Runtime.evaluate` on the SW's own target) to bypass MV3 CSP `unsafe-eval` restriction.
+- Offscreen document uses `chrome.runtime.sendMessage` to relay commands and fetch bridge port (offscreen docs cannot access `chrome.storage`).
+
+---
+
 ## v0.14.0 — AI Test Generation
 
 **2026-03-09**

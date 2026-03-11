@@ -110,7 +110,7 @@ npm install -g @playwright-repl/mcp
 playwright-repl-mcp   # starts the MCP bridge server
 ```
 
-The extension connects automatically — no side panel needed. The AI agent can then call `run_command` to execute any keyword, Playwright API, or JavaScript command in your real Chrome session.
+The extension connects automatically — no side panel needed. The AI agent can then call `run_command` to execute single commands, or `run_script` to run multi-line scripts in your real Chrome session.
 
 See [packages/mcp/README.md](../mcp/README.md) for full MCP setup and Claude Desktop / Claude Code configuration.
 

@@ -77,7 +77,7 @@ playwright-repl-mcp   # extension connects automatically — no side panel neede
 
 | | `@playwright-repl/mcp` | Playwright MCP | Playwriter |
 |---|:---:|:---:|:---:|
-| MCP tools exposed | **1** `run_command` | ~70 tools | **1** `execute` |
+| MCP tools exposed | **2** `run_command`, `run_script` | ~70 tools | **1** `execute` |
 | Uses your real session | ✅ | ❌ | ✅ |
 | Playwright runs inside browser | ✅ | ❌ | ❌ |
 | `expect()` assertions | ✅ | ❌ | ❌ |
@@ -96,7 +96,7 @@ playwright-repl-mcp   # extension connects automatically — no side panel neede
 packages/
 ├── core/           # @playwright-repl/core — shared Engine, BridgeServer, parser
 ├── cli/            # playwright-repl — terminal REPL
-├── mcp/            # @playwright-repl/mcp — MCP server (run_command tool)
+├── mcp/            # @playwright-repl/mcp — MCP server (run_command, run_script)
 └── extension/      # Dramaturg — Chrome side panel extension (React, Vite)
 ```
 

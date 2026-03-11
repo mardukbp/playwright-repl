@@ -1,4 +1,4 @@
-# <img src="public/icons/dramaturg_icon_128.png" width="64" height="64" style="vertical-align: middle; margin-top: -20px"> Dramaturg (@playwright-repl/extension)
+# <img src="public/icons/dramaturg_icon_128.png" width="48" height="48" align="center"> Dramaturg (@playwright-repl/extension)
 
 Chrome side panel extension that runs the full Playwright API directly inside your browser — no Node.js backend, no external server required. Use it as a standalone automation console, or connect it to the CLI for terminal-driven control.
 

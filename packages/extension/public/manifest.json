@@ -22,9 +22,10 @@
   "action": {
     "default_title": "Dramaturg",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "icons/dramaturg_icon_16.png",
+      "32": "icons/dramaturg_icon_32.png",
+      "48": "icons/dramaturg_icon_48.png",
+      "128": "icons/dramaturg_icon_128.png"
     }
   },
   "side_panel": {
@@ -35,8 +36,9 @@
     "type": "module"
   },
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icons/dramaturg_icon_16.png",
+    "32": "icons/dramaturg_icon_32.png",
+    "48": "icons/dramaturg_icon_48.png",
+    "128": "icons/dramaturg_icon_128.png"
   }
 }

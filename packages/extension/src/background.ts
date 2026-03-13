@@ -133,33 +133,45 @@ async function stopRecording(): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-// ─── CDP Evaluate ────────────────────────────────────────────────────────────
+// ─── Pick Element ────────────────────────────────────────────────────────────
+
+async function startPicking(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const tabId = await getActiveTabId();
+    if (!tabId) return { ok: false, error: 'No active tab' };
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content/picker.js'] });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+async function stopPicking(): Promise<{ ok: boolean }> {
+  const tabId = await getActiveTabId();
+  if (tabId) await chrome.tabs.sendMessage(tabId, { type: 'pick-stop' }).catch(() => {});
+  return { ok: true };
+}
+
+// ─── CDP Helpers ─────────────────────────────────────────────────────────────
+
+function cdpCommand(tabId: number, method: string, params: Record<string, unknown> = {}): Promise<any> {
+  return new Promise((resolve, reject) => {
+    chrome.debugger.sendCommand({ tabId }, method, params, (result) => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message ?? ''));
+      else resolve(result);
+    });
+  });
+}
 
 function cdpEvaluate(tabId: number, expression: string): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    chrome.debugger.sendCommand(
-      { tabId },
-      'Runtime.evaluate',
-      { expression, objectGroup: 'console', returnByValue: false, generatePreview: true, awaitPromise: true },
-      (result) => {
-        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-        else resolve(result);
-      }
-    );
+  return cdpCommand(tabId, 'Runtime.evaluate', {
+    expression, objectGroup: 'console', returnByValue: false, generatePreview: true, awaitPromise: true,
   });
 }
 
 function cdpGetProperties(tabId: number, objectId: string): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    chrome.debugger.sendCommand(
-      { tabId },
-      'Runtime.getProperties',
-      { objectId, ownProperties: true, generatePreview: true },
-      (result) => {
-        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-        else resolve(result);
-      }
-    );
+  return cdpCommand(tabId, 'Runtime.getProperties', {
+    objectId, ownProperties: true, generatePreview: true,
   });
 }
 
@@ -359,6 +371,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'health')        { sendResponse({ ok: !!crxApp }); return false; }
   if (msg.type === 'record-start')  { startRecording().then(sendResponse); return true; }
   if (msg.type === 'record-stop')   { stopRecording().then(sendResponse); return true; }
+  if (msg.type === 'pick-start')    { startPicking().then(sendResponse); return true; }
+  if (msg.type === 'pick-stop')     { stopPicking().then(sendResponse); return true; }
   if (msg.type === 'cdp-evaluate')  {
     if (!activeTabId) { sendResponse({ error: 'Not attached to any tab.' }); return false; }
     cdpEvaluate(activeTabId, msg.expression).then(sendResponse).catch(e => sendResponse({ error: String(e) }));

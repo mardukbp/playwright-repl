@@ -67,7 +67,9 @@ async function getActiveTabId(): Promise<number | null> {
 async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; error?: string }> {
   try {
     const tab = await chrome.tabs.get(tabId);
-    if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
+    const ownOrigin = `chrome-extension://${chrome.runtime.id}/`;
+    if (tab.url?.startsWith('chrome://') ||
+        (tab.url?.startsWith('chrome-extension://') && !tab.url?.startsWith(ownOrigin))) {
       return { ok: false, error: 'Cannot attach to internal pages. Navigate to a regular webpage first.' };
     }
 

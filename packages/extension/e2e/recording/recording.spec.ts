@@ -1,12 +1,9 @@
 /**
  * Recording E2E tests — verify the full recording flow with real recorder.
  *
- * Flow: panel Record button → background startRecording() → recorder.show() →
- * connectWithRetry() → recorder port → user interacts with page →
- * setSources → handleRecordedSources → editor.
- *
- * Unlike panel.spec.ts recording tests (which mock chrome.runtime), these tests
- * exercise the real background service worker and playwright-crx recorder.
+ * Flow: panel Record button → background startRecording() →
+ * chrome.scripting.executeScript(recorder.js) → user interacts with page →
+ * content script captures event → chrome.runtime.sendMessage → editor.
  */
 
 import { test, expect, waitForEditorText } from './fixtures.js';
@@ -60,7 +57,7 @@ test.describe('Recording flow', () => {
       // No bringToFront — waitForFunction works via CDP regardless of which tab
       // is active, and keeping the test page in front avoids Chrome throttling
       // the recorder's JS in the background tab.
-      await waitForEditorText(panelPage, 'click "Submit"');
+      await waitForEditorText(panelPage, 'click button "Submit"');
     });
 
     test('filling a text input records a fill action', async ({ panelPage, testPage }) => {

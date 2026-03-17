@@ -1,0 +1,57 @@
+Dramaturg — Playwright Engineer's Companion
+
+Console, editor, runner, debugger, and recorder for Playwright — all in a Chrome side panel. No Node.js backend, no external server. Open the panel and start automating.
+
+Console — two modes, one input
+
+.pw keywords: goto, click, fill, snapshot, verify-text, ...
+JavaScript: Playwright API, DOM access, expect() assertions — auto-detected
+Results render as expandable CDP object trees, just like Chrome DevTools.
+
+Editor
+
+Write and run multi-line .pw or JavaScript (Playwright API, DOM) scripts
+Playwright API and .pw keyword autocompletion with ghost-text suggestions
+Syntax highlighting, auto-closing brackets, pass/fail gutter markers
+Load and save .pw / .js files
+
+JS Debugger
+
+Set breakpoints by clicking the editor gutter
+Step Over, Step Into, Step Out, and Continue
+Inline variable values displayed on the paused line
+Variables tab — inspect Local, Block, Closure, and Script scope variables
+Expandable object tree for complex values
+Floating debug toolbar during debug sessions
+
+Recorder
+
+Capture clicks, hovers, fills, and navigations live
+Generates .pw commands or JS Playwright code
+Ancestor context disambiguation for ambiguous elements (e.g. click "Save" --in "Settings")
+Pick elements with hover highlight and locator tooltip
+Contextual assertions (verify-text, verify-visible)
+Inserted into the editor in real time
+
+Features
+
+Expandable accessibility tree for snapshot output
+Categorized help command — help click for per-command help, help js for Playwright API reference
+Auto-attach to the active tab
+Tab switcher — switch targets from the toolbar
+Screenshot preview with click-to-expand lightbox
+Language mode preference (.pw or JS) in Options
+Light / dark mode
+Side panel or popup window (configurable in Options)
+Connects to CLI (playwright-repl --bridge) and MCP server for AI-driven automation
+
+Use cases
+
+Interactively test page interactions without writing scripts
+Record user flows and replay them
+Debug JavaScript with breakpoints and variable inspection
+Debug element targeting with accessibility snapshots
+Let AI agents control your real browser session via MCP
+Type help in the console to see all commands. help click for per-command help.
+
+Open source: https://github.com/stevez/playwright-repl

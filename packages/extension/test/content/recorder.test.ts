@@ -234,7 +234,7 @@ describe('recorder', () => {
         it('sends press with locator for focused element', () => {
             document.body.innerHTML = '<button>OK</button>';
             const btn = document.querySelector('button')!;
-            const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
+            const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
             Object.defineProperty(event, 'target', { value: btn });
             onKeyDownCapture(event);
             expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(

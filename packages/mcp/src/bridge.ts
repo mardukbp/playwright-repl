@@ -2,7 +2,7 @@
  * Bridge runner — connects to Chrome via the Dramaturg extension over WebSocket.
  */
 
-import { BridgeServer } from '@playwright-repl/core';
+import { BridgeServer, UPDATE_COMMANDS, parseInput } from '@playwright-repl/core';
 import type { EngineResult } from '@playwright-repl/core';
 import type { RunnerModule, SnapshotCache } from './types.js';
 
@@ -22,7 +22,9 @@ export const descriptions = {
    await page.locator('button').count(),
    await page.evaluate(() => document.title)
 
-Use snapshot to understand the page structure before interacting. Use screenshot to visually verify the current state.
+Update commands (click, fill, goto, press, hover, select, check, uncheck, etc.) automatically include a snapshot of the page after the action. You do NOT need to call snapshot separately after these commands.
+
+Use snapshot only for initial exploration or after read-only commands. Use screenshot to visually verify the current state.
 
 IMPORTANT: Before writing .pw commands, run 'help' to get the full list of available commands. Only use commands that appear in the help output. Do not invent commands.`,
 
@@ -68,12 +70,26 @@ export async function createBridgeRunner(
                 if (!srv.connected) {
                     return { text: 'Browser not connected. Open Chrome with the playwright-repl extension — it connects automatically.', isError: true };
                 }
-                const result = await srv.run(command);
-                // Bridge mode: snapshot returns raw YAML (no ### headers)
-                const trimmed = command.trim().toLowerCase();
-                if (trimmed.startsWith('snapshot') && result.text && !result.isError) {
-                    snapshotCache.value = { url: '', snapshotString: result.text.trim() };
+
+                // Determine command name for snapshot logic
+                const parsed = parseInput(command);
+                const cmdName = parsed?._[0];
+                const isUpdate = cmdName !== undefined && UPDATE_COMMANDS.has(cmdName);
+
+                // Request snapshot in the same round-trip for update commands
+                const result = await srv.run(command, isUpdate ? { includeSnapshot: true } : undefined);
+                if (result.isError) return result;
+
+                // Cache snapshot (from explicit snapshot command or appended by handler)
+                if (result.text) {
+                    const snapMatch = result.text.match(/### Snapshot\n([\s\S]+)$/);
+                    if (snapMatch) {
+                        snapshotCache.value = { url: '', snapshotString: snapMatch[1].trim() };
+                    } else if (cmdName === 'snapshot') {
+                        snapshotCache.value = { url: '', snapshotString: result.text.trim() };
+                    }
                 }
+
                 return result;
             },
             async runScript(script: string, language: 'pw' | 'javascript'): Promise<EngineResult> {

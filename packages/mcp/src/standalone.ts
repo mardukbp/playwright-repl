@@ -6,6 +6,8 @@ import { Engine, parseInput, resolveArgs, filterResponse } from '@playwright-rep
 import type { EngineResult } from '@playwright-repl/core';
 import type { RunnerModule, SnapshotCache } from './types.js';
 
+const INCLUDE_SNAPSHOT = { includeSnapshot: true } as const;
+
 export const descriptions = {
     runCommandInput: `A keyword command ('snapshot', 'goto https://example.com', 'click Submit', \
 'fill "Email" user@example.com')`,
@@ -15,7 +17,9 @@ export const descriptions = {
    verify-text <text>, verify-no-text <text>, screenshot,
    check <label>, select <label> <value>, localstorage-list, localstorage-clear
 
-Use snapshot to understand the page structure before interacting. Use screenshot to visually verify the current state.
+Update commands (click, fill, goto, press, hover, select, check, uncheck, etc.) automatically include a snapshot of the page after the action. You do NOT need to call snapshot separately after these commands.
+
+Use snapshot only for initial exploration or after read-only commands. Use screenshot to visually verify the current state.
 
 IMPORTANT: Before writing .pw commands, run 'help' to get the full list of available commands. Only use commands that appear in the help output. Do not invent commands.`,
 
@@ -57,8 +61,7 @@ export function createStandaloneRunner(
         const result = await e.run(resolved);
 
         // Cache snapshot for locator command — strip YAML code fences
-        const trimmed = command.trim().toLowerCase();
-        if (trimmed.startsWith('snapshot') && result.text && !result.isError) {
+        if (result.text && !result.isError) {
             const snapshotMatch = result.text.match(/### Snapshot\n([\s\S]*?)(?=\n### |$)/);
             if (snapshotMatch) {
                 const raw = snapshotMatch[1].trim();
@@ -67,8 +70,8 @@ export function createStandaloneRunner(
             }
         }
 
-        // Filter verbose Playwright response sections
-        if (result.text) result.text = filterResponse(result.text, cmdName);
+        // Filter verbose Playwright response sections — keep snapshots for MCP
+        if (result.text) result.text = filterResponse(result.text, cmdName, INCLUDE_SNAPSHOT);
         return result;
     }
 

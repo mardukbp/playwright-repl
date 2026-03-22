@@ -13,45 +13,40 @@ const SAMPLE_YAML = `\
     - img [ref=e7]
 `;
 
-describe('parseSnapshot — scalar values inline', () => {
-  it('stores string value separately, keeps ref in text', () => {
+describe('parseSnapshot — scalar values as child nodes', () => {
+  it('creates child node for string value', () => {
     const yaml = `\
 - document [ref=e1]:
   - textbox "Search" [ref=e5]: hello`;
     const root = parseSnapshot(yaml);
     const textbox = root!.children[0];
-    expect(textbox.text).toBe('textbox "Search" [ref=e5]: hello');
+    expect(textbox.text).toBe('textbox "Search"');
     expect(textbox.ref).toBe('e5');
-    expect(textbox.value).toBe('hello');
-    expect(textbox.children).toEqual([]);
+    expect(textbox.children).toEqual([{ text: 'hello', children: [] }]);
   });
 
-  it('stores numeric value separately, keeps ref in text', () => {
+  it('creates child node for numeric value', () => {
     const yaml = `\
 - document [ref=e1]:
   - textbox "Amount" [ref=e2]: 42`;
     const root = parseSnapshot(yaml);
-    expect(root!.children[0].text).toBe('textbox "Amount" [ref=e2]: 42');
-    expect(root!.children[0].value).toBe('42');
-    expect(root!.children[0].children).toEqual([]);
+    expect(root!.children[0].children).toEqual([{ text: '42', children: [] }]);
   });
 
-  it('stores /url value separately, keeps text as-is', () => {
+  it('creates child for /url value', () => {
     const yaml = `\
 - document [ref=e1]:
   - link "Get started" [ref=e2]:
     - /url: /docs/intro`;
     const root = parseSnapshot(yaml);
     const link = root!.children[0];
-    expect(link.text).toBe('link "Get started" [ref=e2]');
     expect(link.children.length).toBe(1);
     const urlNode = link.children[0];
-    expect(urlNode.text).toBe('/url: /docs/intro');
-    expect(urlNode.value).toBe('/docs/intro');
-    expect(urlNode.children).toEqual([]);
+    expect(urlNode.text).toBe('/url');
+    expect(urlNode.children).toEqual([{ text: '/docs/intro', children: [] }]);
   });
 
-  it('keeps array children as-is, preserves ref in text', () => {
+  it('keeps array children as-is', () => {
     const yaml = `\
 - document [ref=e1]:
   - navigation "Main":
@@ -59,7 +54,7 @@ describe('parseSnapshot — scalar values inline', () => {
     const root = parseSnapshot(yaml);
     const nav = root!.children[0];
     expect(nav.children.length).toBe(1);
-    expect(nav.children[0].text).toBe('link "Home" [ref=e3]');
+    expect(nav.children[0].text).toBe('link "Home"');
   });
 });
 

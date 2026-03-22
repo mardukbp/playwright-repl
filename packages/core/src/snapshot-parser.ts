@@ -5,6 +5,7 @@ import yaml from 'js-yaml';
 export interface SnapshotNode {
     text: string;
     ref?: string;
+    value?: string;
     children: SnapshotNode[];
 }
 
@@ -23,14 +24,17 @@ function toNodes(parsed: unknown[]): SnapshotNode[] {
         if (typeof item === 'string') {
             return { text: stripRef(item), ref: extractRef(item), children: [] };
         }
-        // Object: { "document [ref=e1]": [...children] }
-        const obj = item as Record<string, unknown[]>;
+        // Object: { "document [ref=e1]": [...children] } or { "textbox [ref=e5]": "value" }
+        const obj = item as Record<string, unknown>;
         const key = Object.keys(obj)[0];
-        const children = obj[key];
+        const val = obj[key];
+        const isScalar = typeof val === 'string' || typeof val === 'number';
+        const children = Array.isArray(val) ? toNodes(val) : [];
         return {
             text: stripRef(key),
             ref: extractRef(key),
-            children: Array.isArray(children) ? toNodes(children) : [],
+            value: isScalar ? String(val) : undefined,
+            children,
         };
     });
 }

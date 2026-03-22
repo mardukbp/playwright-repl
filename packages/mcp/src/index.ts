@@ -6,6 +6,7 @@ import { COMMANDS, CATEGORIES, refToLocator } from '@playwright-repl/core';
 import pkg from '../package.json' with { type: 'json' };
 import { createBridgeRunner } from './bridge.js';
 import { createStandaloneRunner } from './standalone.js';
+import { logStartup, logEvent, logToolCall, logToolResult, logError, LOG_FILE } from './logger.js';
 import type { SnapshotCache } from './types.js';
 
 const argv = process.argv.slice(2);
@@ -20,6 +21,8 @@ const { runner, descriptions } = standalone
     ? createStandaloneRunner(headed, snapshotCache)
     : await createBridgeRunner(argv, snapshotCache);
 
+logStartup(standalone ? 'standalone' : 'bridge', `log → ${LOG_FILE}`);
+
 // ─── MCP server ──────────────────────────────────────────────────────────────
 
 const server = new McpServer({ name: 'playwright-repl', version: pkg.version });
@@ -33,11 +36,14 @@ server.registerTool(
         },
     },
     async ({ command }) => {
+        const start = Date.now();
+        logToolCall('run_command', { command });
         const trimmed = command.trim().toLowerCase();
         if (trimmed === 'help') {
             const lines = Object.entries(CATEGORIES)
                 .map(([cat, cmds]) => `  ${cat}: ${cmds.join(', ')}`)
                 .join('\n');
+            logToolResult('run_command', false, 'help', Date.now() - start);
             return { content: [{ type: 'text' as const, text: `Available commands:\n${lines}\n\nType "help <command>" for details.` }] };
         }
         if (trimmed.startsWith('locator ')) {
@@ -65,16 +71,22 @@ server.registerTool(
             }
             return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
         }
-        const result = await runner.runCommand(command);
-        if (result.image) {
-            const [header, data] = result.image.split(',');
-            const mimeType = (header.match(/data:(.*);base64/) ?? [])[1] ?? 'image/png';
-            return { content: [{ type: 'image' as const, data, mimeType }] };
+        try {
+            const result = await runner.runCommand(command);
+            logToolResult('run_command', !!result.isError, result.text, Date.now() - start);
+            if (result.image) {
+                const [header, data] = result.image.split(',');
+                const mimeType = (header.match(/data:(.*);base64/) ?? [])[1] ?? 'image/png';
+                return { content: [{ type: 'image' as const, data, mimeType }] };
+            }
+            return {
+                content: [{ type: 'text' as const, text: result.text || 'Done' }],
+                isError: result.isError,
+            };
+        } catch (err) {
+            logError('run_command', err);
+            throw err;
         }
-        return {
-            content: [{ type: 'text' as const, text: result.text || 'Done' }],
-            isError: result.isError,
-        };
     }
 );
 
@@ -90,15 +102,28 @@ server.registerTool(
             },
     },
     async (params: Record<string, unknown>) => {
+        const start = Date.now();
         const script = params.script as string;
         const language = (params.language as 'pw' | 'javascript') || 'pw';
-        const result = await runner.runScript(script, language);
-        return {
-            content: [{ type: 'text' as const, text: result.text || 'Done' }],
-            isError: result.isError,
-        };
+        logToolCall('run_script', { language, script });
+        try {
+            const result = await runner.runScript(script, language);
+            logToolResult('run_script', !!result.isError, result.text, Date.now() - start);
+            return {
+                content: [{ type: 'text' as const, text: result.text || 'Done' }],
+                isError: result.isError,
+            };
+        } catch (err) {
+            logError('run_script', err);
+            throw err;
+        }
     }
 );
+
+server.server.oninitialized = () => {
+    const client = server.server.getClientVersion();
+    if (client) logEvent(`Client: ${client.name} ${client.version}`);
+};
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

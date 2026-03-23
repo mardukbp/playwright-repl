@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.20.0 — MCP & Standalone Mode
+
+**2026-03-22**
+
+### Features
+
+- **MCP standalone mode**: New `--standalone` flag launches an in-process Playwright engine — no Chrome extension needed. ([#316](https://github.com/stevez/playwright-repl/pull/316))
+- **MCP snapshot in responses**: Update commands (click, fill, goto, etc.) automatically include accessibility snapshots in MCP responses, reducing round-trips. ([#319](https://github.com/stevez/playwright-repl/issues/319), [#320](https://github.com/stevez/playwright-repl/pull/320))
+- **MCP file-based logging**: Tool calls, results, and lifecycle events are written to `~/.playwright-repl/mcp.log` for debugging in any MCP host. ([#322](https://github.com/stevez/playwright-repl/issues/322), [#324](https://github.com/stevez/playwright-repl/pull/324))
+- **Role-based commands in standalone mode**: CLI standalone now supports role prefixes like `click button "Submit"`. ([#267](https://github.com/stevez/playwright-repl/issues/267), [#313](https://github.com/stevez/playwright-repl/pull/313))
+- **wait-for-text in standalone mode**: Added missing `wait-for-text` command to standalone. ([#317](https://github.com/stevez/playwright-repl/pull/317))
+
+### Fixes
+
+- **CLI standalone command alignment**: Standalone commands now match bridge mode behavior. ([#302](https://github.com/stevez/playwright-repl/issues/302), [#315](https://github.com/stevez/playwright-repl/pull/315))
+- **Snapshot values inline**: Fixed snapshot values to show inline with refs kept in text. ([#310](https://github.com/stevez/playwright-repl/pull/310))
+- **Complex chained locators**: Fixed picker derivation for complex chained locators. ([#306](https://github.com/stevez/playwright-repl/pull/306))
+- **Recording selector injection**: Removed pw-selector.js injection, switched to custom locator. ([#308](https://github.com/stevez/playwright-repl/issues/308), [#309](https://github.com/stevez/playwright-repl/pull/309))
+- **Pick result rendering**: Element pick results now render as an expandable ObjectTree instead of raw text. ([#295](https://github.com/stevez/playwright-repl/issues/295), [#300](https://github.com/stevez/playwright-repl/pull/300))
+
+### Docs
+
+- **Help role syntax**: Added `[role]` prefix to help usage for interaction commands (click, fill, check, etc.). ([#323](https://github.com/stevez/playwright-repl/pull/323))
+
+### Tests
+
+- **Bridge replay E2E**: Added bridge replay E2E test to CI. ([#318](https://github.com/stevez/playwright-repl/pull/318))
+
+---
+
 ## v0.19.0 — Playwright Selector Integration
 
 **2026-03-21**

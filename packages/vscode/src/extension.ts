@@ -60,21 +60,37 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showWarningMessage('No active test file.');
         return;
       }
-      if (!browserManager?.isRunning()) {
-        vscode.window.showWarningMessage('Launch browser first.');
+      const filePath = editor.document.uri.fsPath;
+      if (!/\.(spec|test)\.(ts|js|mjs)$/.test(filePath)) {
+        vscode.window.showWarningMessage('Not a test file. Open a .spec.ts or .test.ts file first.');
         return;
       }
+      const fileName = filePath.replace(/.*[\\/]/, '');
 
-      const filePath = editor.document.uri.fsPath;
-      const terminal = vscode.window.createTerminal({
-        name: 'Playwright Test',
-        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-      });
-      terminal.show();
-      terminal.sendText(
-        `npx playwright test "${filePath}" --config=playwright-ide.config.ts`,
-        true
-      );
+      try {
+        // Auto-launch browser if not running (headless for test execution)
+        if (!browserManager?.isRunning()) {
+          const config = vscode.workspace.getConfiguration('playwright-ide');
+          outputChannel.appendLine('Auto-launching browser for test run...');
+          await browserManager!.launch({
+            browser: config.get('browser', 'chromium'),
+            bridgePort: config.get('bridgePort', 9876),
+            headless: config.get('headless', false),
+          });
+          outputChannel.show();
+        }
+
+        const { bundleTestFile } = await import('./bundler.js');
+        outputChannel.appendLine(`Bundling ${fileName}...`);
+        const script = await bundleTestFile(filePath);
+        outputChannel.appendLine(`Running tests in ${fileName}...`);
+        const result = await browserManager!.runScript(script);
+        outputChannel.appendLine(`\n── ${fileName} ──`);
+        outputChannel.appendLine(result.text || '(no output)');
+        outputChannel.show();
+      } catch (err: unknown) {
+        vscode.window.showErrorMessage(`Test run failed: ${(err as Error).message}`);
+      }
     })
   );
 

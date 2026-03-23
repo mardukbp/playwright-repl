@@ -5,6 +5,7 @@
 import { BridgeServer, UPDATE_COMMANDS, parseInput } from '@playwright-repl/core';
 import type { EngineResult } from '@playwright-repl/core';
 import type { RunnerModule, SnapshotCache } from './types.js';
+import { logEvent } from './logger.js';
 
 export const descriptions = {
     runCommandInput: `A keyword command ('snapshot', 'goto https://example.com', 'click Submit', \
@@ -60,8 +61,9 @@ export async function createBridgeRunner(
         throw err;
     }
     console.error(`playwright-repl bridge listening on ws://localhost:${port}`);
-    srv.onConnect(() => console.error('Extension connected'));
-    srv.onDisconnect(() => console.error('Extension disconnected'));
+    logEvent(`Bridge listening on ws://localhost:${port}`);
+    srv.onConnect(() => { console.error('Extension connected'); logEvent('Extension connected'); });
+    srv.onDisconnect(() => { console.error('Extension disconnected'); logEvent('Extension disconnected'); });
 
     return {
         descriptions,

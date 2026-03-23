@@ -1,0 +1,64 @@
+{
+  "name": "playwright-ide",
+  "displayName": "Playwright IDE",
+  "description": "Playwright IDE — 35x faster test execution with live REPL",
+  "version": "0.20.0",
+  "private": true,
+  "publisher": "playwright-repl",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Testing",
+    "Debuggers"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "playwright-ide.launchBrowser",
+        "title": "Playwright IDE: Launch Browser"
+      },
+      {
+        "command": "playwright-ide.openRepl",
+        "title": "Playwright IDE: Open REPL"
+      },
+      {
+        "command": "playwright-ide.runTest",
+        "title": "Playwright IDE: Run Test File"
+      },
+      {
+        "command": "playwright-ide.stopBrowser",
+        "title": "Playwright IDE: Stop Browser"
+      }
+    ],
+    "configuration": {
+      "title": "Playwright IDE",
+      "properties": {
+        "playwright-ide.browser": {
+          "type": "string",
+          "default": "chromium",
+          "enum": ["chromium", "chrome", "msedge"],
+          "description": "Browser to launch (chromium = Playwright's bundled Chromium)"
+        },
+        "playwright-ide.bridgePort": {
+          "type": "number",
+          "default": 9876,
+          "description": "WebSocket bridge port for extension communication"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@playwright-repl/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.100.0",
+    "esbuild": "^0.25.0"
+  }
+}

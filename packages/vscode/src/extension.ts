@@ -94,13 +94,27 @@ export function activate(context: vscode.ExtensionContext) {
           outputChannel.show();
         }
 
-        const { bundleTestFile } = await import('./bundler.js');
-        outputChannel.appendLine(`Bundling ${fileName}...`);
-        const script = await bundleTestFile(filePath);
-        outputChannel.appendLine(`Running tests in ${fileName}...`);
-        const result = await browserManager!.runScript(script);
+        // Detect mode by analyzing full dependency tree via esbuild
+        const { detectTestMode } = await import('./mode-detect.js');
+        const mode = await detectTestMode(filePath);
+        outputChannel.appendLine(`Mode: ${mode === 'browser' ? '⚡ browser (fast)' : '🔧 compiler (Node.js)'}`);
+
+        let resultText: string;
+        if (mode === 'browser') {
+          // Current approach: bundle with shim, run in browser
+          const { bundleTestFile } = await import('./bundler.js');
+          const script = await bundleTestFile(filePath);
+          const result = await browserManager!.runScript(script);
+          resultText = result.text || '(no output)';
+        } else {
+          // Compiler approach: transform page/expect to bridge.run(), run in Node.js
+          const { compileTestFile, executeCompiledTest } = await import('./compiler.js');
+          const compiled = await compileTestFile(filePath);
+          outputChannel.appendLine('Running in Node.js with bridge...');
+          resultText = await executeCompiledTest(compiled, (cmd) => browserManager!.runCommand(cmd));
+        }
         outputChannel.appendLine(`\n── ${fileName} ──`);
-        outputChannel.appendLine(result.text || '(no output)');
+        outputChannel.appendLine(resultText);
         outputChannel.show();
       } catch (err: unknown) {
         vscode.window.showErrorMessage(`Test run failed: ${(err as Error).message}`);

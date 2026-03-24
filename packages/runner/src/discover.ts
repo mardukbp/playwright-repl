@@ -12,9 +12,19 @@ export function discoverTests(testDir: string, filter?: string[]): string[] {
     return [];
   }
 
-  // If filter specifies files directly, use them
+  // If filter specifies files or directories, use them
   if (filter && filter.length > 0) {
-    return filter.map(f => path.resolve(f)).filter(f => fs.existsSync(f));
+    const result: string[] = [];
+    for (const f of filter) {
+      const abs = path.resolve(f);
+      if (!fs.existsSync(abs)) continue;
+      if (fs.statSync(abs).isDirectory()) {
+        walkDir(abs, result);
+      } else {
+        result.push(abs);
+      }
+    }
+    return result.sort();
   }
 
   // Walk directory for .spec.ts / .test.ts files
@@ -26,7 +36,7 @@ export function discoverTests(testDir: string, filter?: string[]): string[] {
 function walkDir(dir: string, out: string[]) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+    if (entry.name === 'node_modules' || entry.name === 'playwright-tests' || entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       walkDir(full, out);

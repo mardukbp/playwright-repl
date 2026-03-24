@@ -46,18 +46,13 @@ export async function run(args: string[]): Promise<number> {
   await bridge.start(0);
   const bridgePort = bridge.port;
 
-  // Launch Chromium with extension
+  // Launch Chromium with extension — returns context + the active page
   const { launchBrowser } = await import('./browser.js');
-  const context = await launchBrowser({ headed: runOpts.headed, bridgePort });
+  const { context, page: nodePage } = await launchBrowser({ headed: runOpts.headed, bridgePort });
 
   // Wait for extension to connect
   await bridge.waitForConnection(30000);
   console.log('Browser connected.\n');
-
-  // The bridge's page lives inside the extension's context — not visible to
-  // launchPersistentContext. Use context-level routing instead, which intercepts
-  // all pages across all contexts in the browser.
-  const nodePage = context;
 
   // Run test files
   const allResults: TestResult[] = [];
@@ -65,7 +60,8 @@ export async function run(args: string[]): Promise<number> {
   const startTime = Date.now();
 
   for (const file of testFiles) {
-    const results = await executeTestFile(file, bridge, runOpts, nodePage);
+    // context = for route/unroute (context-level), nodePage = for waitForEvent (CDP page)
+    const results = await executeTestFile(file, bridge, runOpts, context, nodePage);
     allResults.push(...results);
     for (const r of results) {
       if (r.passed) {

@@ -10,6 +10,8 @@
  */
 
 import * as vscode from 'vscode';
+import path from 'node:path';
+import fs from 'node:fs';
 import { parseTestFile, type ParsedTest } from './test-parser.js';
 import type { BrowserManager } from './browser.js';
 
@@ -195,13 +197,35 @@ export class TestExplorer {
     const fileUri = items[0] ? this._getFileUri(items[0]) : undefined;
     if (!fileUri) return;
 
-    // Launch debug session with the test file
-    await vscode.debug.startDebugging(undefined, {
-      type: 'playwright-ide',
-      request: 'launch',
-      name: 'Debug Playwright Test',
-      program: fileUri.fsPath,
-    });
+    // Debug: standard npx playwright test with Node.js debugger attached
+    try {
+      const testDir = path.dirname(fileUri.fsPath);
+      const testFileName = path.basename(fileUri.fsPath);
+
+      const run = this._controller.createTestRun(request);
+      for (const item of items) run.started(item);
+
+      await vscode.debug.startDebugging(undefined, {
+        type: 'node',
+        request: 'launch',
+        name: 'Debug Playwright Test',
+        runtimeExecutable: 'npx',
+        runtimeArgs: ['playwright', 'test', testFileName, '--headed'],
+        cwd: testDir,
+        sourceMaps: true,
+        skipFiles: ['<node_internals>/**', '**/node_modules/**'],
+      });
+
+      // Mark tests as passed when debug session ends
+      const disposable = vscode.debug.onDidTerminateDebugSession(() => {
+        for (const item of items) run.passed(item);
+        run.end();
+        disposable.dispose();
+      });
+    } catch (err: unknown) {
+      this._outputChannel.appendLine(`Debug error: ${(err as Error).message}`);
+      vscode.window.showErrorMessage(`Debug failed: ${(err as Error).message}`);
+    }
   }
 
   private _collectLeafTests(item: vscode.TestItem, out: vscode.TestItem[]) {

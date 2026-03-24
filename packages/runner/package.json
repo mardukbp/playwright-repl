@@ -1,0 +1,30 @@
+{
+  "name": "@playwright-repl/runner",
+  "version": "0.20.0",
+  "description": "Playwright test runner with 10x faster bridge execution",
+  "type": "module",
+  "bin": {
+    "pw": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "test": "vitest run",
+    "test:e2e": "node dist/cli.js test",
+    "test:benchmark": "echo '--- Standard Playwright ---' && npx playwright test --workers=1 && echo '--- pw ---' && node dist/cli.js test"
+  },
+  "dependencies": {
+    "@playwright-repl/core": "workspace:*",
+    "@playwright-repl/extension": "workspace:*",
+    "esbuild": "^0.25.0",
+    "playwright-core": "1.59.0-alpha-2026-02-21"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -16,6 +16,7 @@ import type { BridgeServer } from '@playwright-repl/core';
 import { createPageProxy, createExpect } from './proxy-page.js';
 import { installFramework } from './shim/framework.js';
 import type { RunOptions, TestResult } from './types.js';
+import { expect as pwExpect } from '@playwright/test';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -48,16 +49,17 @@ function getAliasPath(): string {
 export async function executeTestFile(
   testFilePath: string,
   bridge: BridgeServer,
-  _opts: RunOptions,
+  opts: RunOptions,
   nodePage?: any,
   cdpPage?: any,
 ): Promise<TestResult[]> {
-  const needsNode = await detectNodeAPIs(testFilePath);
+  const needsNode = opts.forceNode || await detectNodeAPIs(testFilePath);
+  console.log(`  [path] ${path.basename(testFilePath)} → ${needsNode ? 'NODE' : 'BROWSER'}`);
 
   if (needsNode) {
-    return executeNode(testFilePath, bridge, nodePage, cdpPage);
+    return executeNode(testFilePath, bridge, opts.grep, nodePage, cdpPage);
   }
-  return executeBrowser(testFilePath, bridge);
+  return executeBrowser(testFilePath, bridge, opts.grep);
 }
 
 // ─── Browser Path ──────────────────────────────────────────────────────────
@@ -65,7 +67,12 @@ export async function executeTestFile(
 async function executeBrowser(
   testFilePath: string,
   bridge: BridgeServer,
+  grep?: string,
 ): Promise<TestResult[]> {
+  // Set grep in browser framework
+  if (grep) await bridge.run(`globalThis.__setGrep(${JSON.stringify(grep)})`);
+  else await bridge.run(`globalThis.__setGrep(null)`);
+
   const compiled = await compileBrowser(testFilePath);
 
   // Send compiled test to bridge — runs in SW with real page/expect
@@ -115,32 +122,136 @@ async function compileBrowser(testFilePath: string): Promise<string> {
 async function executeNode(
   testFilePath: string,
   bridge: BridgeServer,
+  grep?: string,
   nodePage?: any,
   cdpPage?: any,
 ): Promise<TestResult[]> {
-  ensureFramework();
-  (globalThis as any).__resetTestState();
+  const realPage = cdpPage || nodePage;
+  const useProxy = process.argv.includes('--proxy');
+  let page: any;
+  let expect: any;
 
-  const bridgeRun = async (cmd: string) => {
-    const r = await bridge.run(cmd);
-    if (r.isError) throw new Error(r.text || 'Bridge error');
-    return r;
+  if (useProxy) {
+    console.log('  [node] PROXY mode');
+    const bridgeRun = async (cmd: string) => {
+      console.log(`    [bridge →] ${cmd.substring(0, 120)}`);
+      const r = await bridge.run(cmd);
+      console.log(`    [bridge ←] ${r.isError ? 'ERR' : 'OK'} ${(r.text || '').substring(0, 80)}`);
+      if (r.isError) throw new Error(r.text || 'Bridge error');
+      return r;
+    };
+    page = createPageProxy(bridgeRun, nodePage, cdpPage);
+    expect = createExpect(bridgeRun);
+  } else {
+    console.log(`  [node] DIRECT mode`);
+    page = realPage;
+    expect = pwExpect;
+  }
+
+  // Collect registered tests
+  const tests: { name: string; fn: (fixtures: any) => Promise<void>; skip: boolean }[] = [];
+  const hooks: { beforeEach: Function[]; afterEach: Function[]; beforeAll: Function[]; afterAll: Function[] } = {
+    beforeEach: [], afterEach: [], beforeAll: [], afterAll: [],
   };
-  (globalThis as any).__proxyPage = createPageProxy(bridgeRun, nodePage, cdpPage);
-  (globalThis as any).__proxyExpect = createExpect(bridgeRun);
 
+  // Provide test/expect on globalThis for the compiled test file
+  const grepRe = grep ? new RegExp(grep, 'i') : null;
+  const testFn: any = (name: string, fn: any) => { tests.push({ name, fn, skip: false }); };
+  testFn.only = testFn;
+  testFn.skip = (nameOrCond: any, fn?: any) => {
+    if (typeof nameOrCond === 'string') tests.push({ name: nameOrCond, fn, skip: true });
+  };
+  testFn.describe = (name: string, fn: () => void) => {
+    const prefix = name;
+    const origTest = (globalThis as any).__test;
+    const wrappedTest: any = (n: string, f: any) => { tests.push({ name: `${prefix} > ${n}`, fn: f, skip: false }); };
+    wrappedTest.skip = (nOrC: any, f?: any) => {
+      if (typeof nOrC === 'string') tests.push({ name: `${prefix} > ${nOrC}`, fn: f, skip: true });
+    };
+    wrappedTest.only = wrappedTest;
+    (globalThis as any).__test = wrappedTest;
+    fn();
+    (globalThis as any).__test = origTest;
+  };
+  (testFn.describe as any).configure = () => {};
+  testFn.beforeEach = (fn: Function) => { hooks.beforeEach.push(fn); };
+  testFn.afterEach = (fn: Function) => { hooks.afterEach.push(fn); };
+  testFn.beforeAll = (fn: Function) => { hooks.beforeAll.push(fn); };
+  testFn.afterAll = (fn: Function) => { hooks.afterAll.push(fn); };
+  testFn.fixme = (condOrName?: any, fn?: any) => {
+    if (typeof condOrName === 'string') tests.push({ name: condOrName, fn, skip: true });
+  };
+  testFn.slow = () => {};
+  testFn.info = () => ({ annotations: [] });
+  testFn.extend = (fixtures: Record<string, any>) => {
+    // Return a test function that applies extended fixtures
+    const extended: any = (name: string, fn: any) => {
+      testFn(name, async (baseFixtures: any) => {
+        const ext = { ...baseFixtures };
+        for (const [key, fixtureFn] of Object.entries(fixtures)) {
+          if (typeof fixtureFn === 'function') {
+            await new Promise<void>((resolve, reject) => {
+              Promise.resolve(fixtureFn({ ...ext }, async (value: any) => { ext[key] = value; resolve(); })).catch(reject);
+            });
+          }
+        }
+        await fn(ext);
+      });
+    };
+    // Copy methods
+    for (const k of Object.keys(testFn)) (extended as any)[k] = (testFn as any)[k];
+    return extended;
+  };
+
+  (globalThis as any).__test = testFn;
+  (globalThis as any).__expect = expect;
+
+  // Compile and import (registers tests, doesn't run them)
   const compiled = await compileNode(testFilePath);
   const tmpFile = path.join(os.tmpdir(), `pw-test-${Date.now()}.mjs`);
   try {
     fs.writeFileSync(tmpFile, compiled);
-    const mod = await import(`file://${tmpFile.replace(/\\/g, '/')}`);
-    const resultText = typeof mod.default === 'string' ? mod.default : '';
-    return parseResults(resultText, testFilePath);
+    await import(`file://${tmpFile.replace(/\\/g, '/')}`);
   } finally {
-    delete (globalThis as any).__proxyPage;
-    delete (globalThis as any).__proxyExpect;
     try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
   }
+
+  // Run tests from Node side with real page
+  let bridgeCallCount = 0;
+  const origRun = bridge.run.bind(bridge);
+  (bridge as any).run = async (cmd: string, opts?: any) => { bridgeCallCount++; return origRun(cmd, opts); };
+
+  const results: TestResult[] = [];
+  const fixtures = { page, context: page.context(), expect };
+
+  for (const hook of hooks.beforeAll) await hook(fixtures);
+
+  for (const t of tests) {
+    if (t.skip || (grepRe && !grepRe.test(t.name))) {
+      results.push({ name: t.name, file: testFilePath, passed: true, skipped: true, duration: 0 });
+      continue;
+    }
+    const start = Date.now();
+    try {
+      for (const fn of hooks.beforeEach) await fn(fixtures);
+      await t.fn(fixtures);
+      for (const fn of hooks.afterEach) await fn(fixtures);
+      results.push({ name: t.name, file: testFilePath, passed: true, skipped: false, duration: Date.now() - start });
+    } catch (err: unknown) {
+      const msg = (err as Error).message || String(err);
+      console.error(`    [FAIL] ${t.name}\n      ${msg.split('\n').slice(0, 3).join('\n      ')}`);
+      results.push({ name: t.name, file: testFilePath, passed: false, skipped: false, error: msg, duration: Date.now() - start });
+      // Cancel any pending bridge commands by navigating via Node page (bypasses bridge queue)
+      if (useProxy) {
+        try { await realPage.goto('about:blank', { timeout: 5000 }); } catch { /* ignore */ }
+      }
+    }
+  }
+
+  for (const hook of hooks.afterAll) await hook(fixtures);
+
+  console.log(`  [node] bridge calls: ${bridgeCallCount}`);
+  return results;
 }
 
 async function compileNode(testFilePath: string): Promise<string> {
@@ -155,8 +266,6 @@ async function compileNode(testFilePath: string): Promise<string> {
       build.onLoad({ filter: /.*/, namespace: 'entry' }, () => ({
         contents: `
           import './${testFileName}';
-          const result = await globalThis.__runTests();
-          export default result;
         `,
         resolveDir: testDir,
         loader: 'ts',
@@ -189,9 +298,10 @@ const NODE_MODULES = new Set([
 
 // Patterns that need Node.js path (context-level routing)
 const NODE_PATTERNS = [
-  /\.route\s*\(/,       // page.route() with callbacks
+  /\.route\s*\(/,        // page.route() with callbacks
   /\.routeFromHAR\s*\(/, // file path access
   /\.waitForEvent\s*\(/, // non-serializable return objects
+  /\bserver\b/,          // server fixture (http.createServer in Node.js)
 ];
 
 async function detectNodeAPIs(testFilePath: string): Promise<boolean> {

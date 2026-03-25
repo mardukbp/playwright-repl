@@ -29,6 +29,7 @@ export async function run(args: string[]): Promise<number> {
     retries: opts.retries ?? config.retries ?? 0,
     workers: opts.workers ?? 1, // Phase 1: single worker
     baseURL: config.use?.baseURL,
+    forceNode: opts.forceNode,
   };
 
   console.log(`\npw test runner\n`);
@@ -53,6 +54,11 @@ export async function run(args: string[]): Promise<number> {
   // Wait for extension to connect
   await bridge.waitForConnection(30000);
   console.log('Browser connected.\n');
+
+  // Verify bridge works
+  const ping = await bridge.run('help');
+  console.log(`Bridge verify: ${ping.isError ? 'ERROR' : 'OK'} (connected: ${bridge.connected})`);
+  console.log(`Bridge response: ${(ping.text || '').substring(0, 100)}`);
 
   // Run test files
   const allResults: TestResult[] = [];

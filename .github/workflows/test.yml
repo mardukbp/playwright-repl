@@ -9,11 +9,13 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: test (${{ matrix.os }}, node 22)
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [20, 22]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -21,10 +23,10 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -40,8 +42,8 @@ jobs:
         run: pnpm run lint
         working-directory: packages/extension
 
-      - name: Install Playwright Chromium (with system deps)
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} chromium
         working-directory: packages/extension
 
       - name: Run extension component tests
@@ -57,13 +59,15 @@ jobs:
         working-directory: packages/cli
 
       - name: Install Chrome for runner
-        run: pnpm exec playwright install --with-deps chrome
+        run: pnpm exec playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} chrome
         working-directory: packages/runner
 
       - name: Run runner E2E tests (192 tests via pw-cli)
-        run: node ../dist/pw-cli.js test --workers 2
+        run: node ../dist/pw-cli.js test --workers 2 --reporter list
         working-directory: packages/runner/examples
         timeout-minutes: 10
+        env:
+          FORCE_COLOR: '1'
 
       - name: Run extension E2E tests
         run: pnpm exec playwright test

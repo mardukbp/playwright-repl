@@ -48,6 +48,7 @@ const NODE_API_PATTERNS: RegExp[] = [
 ];
 
 function needsNode(filePath: string): boolean {
+  if (process.env.PW_FORCE_NODE) return true;
   const checked = new Set<string>();
 
   function check(file: string): boolean {

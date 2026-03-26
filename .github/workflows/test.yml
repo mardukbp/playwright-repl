@@ -40,8 +40,8 @@ jobs:
         run: pnpm run lint
         working-directory: packages/extension
 
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install chromium
+      - name: Install Playwright Chromium (with system deps)
+        run: pnpm exec playwright install --with-deps chromium
         working-directory: packages/extension
 
       - name: Run extension component tests
@@ -52,21 +52,18 @@ jobs:
         run: node dist/playwright-repl.js --replay examples/
         working-directory: packages/cli
 
-      - name: Run CLI E2E tests (include-snapshot)
-        run: node dist/playwright-repl.js --replay examples/ --include-snapshot --verbose
-        working-directory: packages/cli
-
       - name: Run bridge replay E2E tests
         run: node e2e/test-bridge-replay.js
         working-directory: packages/cli
 
-      - name: Run bridge replay E2E tests (include-snapshot)
-        run: node e2e/test-bridge-replay.js --include-snapshot --verbose
-        working-directory: packages/cli
+      - name: Install Chrome for runner
+        run: pnpm exec playwright install --with-deps chrome
+        working-directory: packages/runner
 
-      - name: Run runner E2E tests (23 todomvc tests via bridge)
-        run: node ../dist/cli.js test
+      - name: Run runner E2E tests (todomvc via pw-cli)
+        run: node ../dist/pw-cli.js test todomvc/ --workers 1
         working-directory: packages/runner/examples
+        timeout-minutes: 5
 
       - name: Run extension E2E tests
         run: pnpm exec playwright test

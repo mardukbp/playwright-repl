@@ -89,15 +89,15 @@ let _context = null;
 async function ensureBridge() {
   if (_bridge) return;
 
+  const { pathToFileURL } = require('url');
   const coreMain = require.resolve('@playwright-repl/core');
-  const coreUrl = 'file:///' + coreMain.replace(/\\/g, '/');
-  const { BridgeServer } = await import(coreUrl);
+  const { BridgeServer } = await import(pathToFileURL(coreMain).href);
 
   _bridge = new BridgeServer();
   await _bridge.start(0);
 
   const extPath = process.env.PW_EXT_PATH;
-  const pw = require('playwright-core');
+  const pw = require('@playwright/test');
   _context = await pw.chromium.launchPersistentContext('', {
     channel: 'chromium',
     headless: true,

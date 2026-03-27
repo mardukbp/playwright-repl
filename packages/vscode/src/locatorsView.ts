@@ -52,6 +52,14 @@ export class LocatorsView extends DisposableBase implements vscodeTypes.WebviewV
     ];
   }
 
+  /** Allow external callers (e.g. our bridge picker) to show a locator. */
+  public showLocator(locator: string, ariaSnapshot?: string) {
+    this._locator = { locator };
+    this._ariaSnapshot = { yaml: ariaSnapshot || '' };
+    this._updateValues();
+    void this._vscode.commands.executeCommand('pw.extension.locatorsView.focus');
+  }
+
   public resolveWebviewView(webviewView: vscodeTypes.WebviewView, context: vscodeTypes.WebviewViewResolveContext, token: vscodeTypes.CancellationToken) {
     this._view = webviewView;
 
@@ -130,7 +138,7 @@ export class LocatorsView extends DisposableBase implements vscodeTypes.WebviewV
 
 function htmlForWebview(vscode: vscodeTypes.VSCode, extensionUri: vscodeTypes.Uri, webview: vscodeTypes.Webview) {
   const style = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'common.css'));
-  const script = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'locatorsView.script.js'));
+  const script = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'locatorsView.script.js'));
   const nonce = getNonce();
 
   return html`

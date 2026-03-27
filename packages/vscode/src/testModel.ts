@@ -43,7 +43,7 @@ export type TestProject = {
 };
 
 export interface RunHooks {
-  onWillRunTests(config: TestConfig, debug: boolean): Promise<{ connectWsEndpoint?: string }>;
+  onWillRunTests(config: TestConfig, debug: boolean): Promise<{ connectWsEndpoint?: string, resetTestServer?: boolean, reusingBrowser?: boolean }>;
   onDidRunTests(): Promise<void>;
 }
 
@@ -538,7 +538,11 @@ export class TestModel extends DisposableBase {
       return;
 
     const externalOptions = await this._embedder.runHooks.onWillRunTests(this.config, false);
-    const showBrowser = this._embedder.settingsModel.showBrowser.get() && !!externalOptions.connectWsEndpoint;
+    // Reset test server if env changed (e.g. PW_REUSE_CDP added/removed)
+    if (externalOptions.resetTestServer)
+      this._playwrightTest.reset();
+    const showBrowser = this._embedder.settingsModel.showBrowser.get() &&
+      !!(externalOptions.connectWsEndpoint || externalOptions.reusingBrowser);
 
     let trace: 'on' | 'off' | undefined;
     let video: 'on' | 'off' | undefined;

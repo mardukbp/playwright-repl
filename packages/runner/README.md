@@ -94,8 +94,8 @@ Tests that use Node APIs (fs, process.env, .route(), etc.) automatically fall ba
 
 Bridge-mode tests (simple, no Node APIs) run ~10x faster but don't support:
 
-- `toMatchAriaSnapshot()` — requires bridge context access
-- `page.route()` / `page.waitForEvent()` — non-serializable callbacks
+- `page.route()` / `page.waitForEvent()` / `page.waitForResponse()` — non-serializable callbacks
+- `page.$eval()` / `page.$$eval()` — callback-based APIs
 
 ## Development
 

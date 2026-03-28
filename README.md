@@ -2,14 +2,37 @@
 
 ![playwright-repl](cover-image.png)
 
-Interactive browser automation powered by Playwright — use it from your **terminal**, as a **Chrome extension**, or let an **AI agent** drive it via MCP.
+Interactive browser automation powered by Playwright — use it from **VS Code**, your **terminal**, as a **Chrome extension**, or let an **AI agent** drive it via MCP.
 
 | Package | Description |
 |---------|-------------|
+| [Playwright REPL](https://github.com/stevez/playwright-repl/blob/main/packages/vscode/README.md) | VS Code extension — 10x faster tests, REPL panel, assert builder, element picker |
 | [`playwright-repl`](https://github.com/stevez/playwright-repl/blob/main/packages/cli/README.md) | CLI — terminal REPL with keyword commands, recording, replay, and piping |
 | [Dramaturg](https://github.com/stevez/playwright-repl/blob/main/packages/extension/README.md) | Chrome extension — console, script editor, recorder, CDP object tree |
 | [`@playwright-repl/mcp`](https://github.com/stevez/playwright-repl/blob/main/packages/mcp/README.md) | MCP server — AI agents control your real Chrome browser |
 | [`@playwright-repl/core`](https://github.com/stevez/playwright-repl/blob/main/packages/core/README.md) | Shared engine, parser, and utilities |
+
+---
+
+## VS Code Extension — Playwright REPL
+
+10x faster Playwright test execution with interactive REPL, assertion builder, and element picker — all inside VS Code.
+
+| Feature | Description |
+|---------|-------------|
+| **Test Explorer** | Bridge execution — ~66ms per test instead of ~3s through standard runner |
+| **REPL Panel** | Interactive commands, inline screenshots, PDF save, execution timing |
+| **Locator Panel** | Pick elements, highlight toggle, ARIA snapshot |
+| **Assert Builder** | 13 matchers, smart filtering by element type, verify against live page |
+| **Browser Reuse** | REPL, tests, recorder, picker share one headed browser |
+
+Three panels in the bottom bar:
+
+```
+REPL | LOCATOR | ASSERT
+```
+
+> **[Full VS Code extension docs](https://github.com/stevez/playwright-repl/blob/main/packages/vscode/README.md)**
 
 ---
 
@@ -117,8 +140,10 @@ playwright-repl-mcp   # extension connects automatically — no side panel neede
 
 ```
 packages/
+├── vscode/         # Playwright REPL — VS Code extension (Test Explorer, REPL, Assert Builder)
 ├── core/           # @playwright-repl/core — shared Engine, BridgeServer, parser
 ├── cli/            # playwright-repl — terminal REPL
+├── runner/         # @playwright-repl/runner — test runner with bridge execution
 ├── mcp/            # @playwright-repl/mcp — MCP server (run_command, run_script)
 └── extension/      # Dramaturg — Chrome side panel extension (React, Vite)
 ```

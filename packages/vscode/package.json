@@ -1,7 +1,7 @@
 {
   "name": "@playwright-repl/vscode",
   "displayName": "Playwright REPL",
-  "description": "10x faster Playwright test execution with interactive REPL, assertion builder, and element picker",
+  "description": "Faster Playwright test execution with interactive REPL, assertion builder, and element picker",
   "icon": "images/playwright-logo.png",
   "version": "0.20.0",
   "private": true,

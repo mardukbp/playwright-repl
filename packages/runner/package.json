@@ -1,7 +1,7 @@
 {
   "name": "@playwright-repl/runner",
   "version": "0.20.0",
-  "description": "Playwright test runner with 10x faster bridge execution",
+  "description": "Playwright test runner with faster bridge execution",
   "type": "module",
   "bin": {
     "pw": "./dist/pw-cli.js"

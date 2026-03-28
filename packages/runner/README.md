@@ -79,7 +79,9 @@ Tests are standard Playwright — same `import { test, expect } from '@playwrigh
 - `playwright.config.ts` — testDir, timeout, retries
 - TypeScript
 
-### Not Yet Supported
+### Node Mode (full Playwright compatibility)
+
+Tests that use Node APIs (fs, process.env, .route(), etc.) automatically fall back to Playwright's standard runner with full support for:
 
 - Parallel workers (`--workers > 1`)
 - `test.use()` — per-test config
@@ -87,7 +89,13 @@ Tests are standard Playwright — same `import { test, expect } from '@playwrigh
 - Custom reporters (HTML, JSON)
 - Global setup/teardown
 - Trace recording
-- `toMatchAriaSnapshot()` — runs in bridge context
+
+### Bridge Mode Limitations
+
+Bridge-mode tests (simple, no Node APIs) run ~10x faster but don't support:
+
+- `toMatchAriaSnapshot()` — requires bridge context access
+- `page.route()` / `page.waitForEvent()` — non-serializable callbacks
 
 ## Development
 

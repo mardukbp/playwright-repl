@@ -9,6 +9,7 @@ Interactive browser automation powered by Playwright — use it from **VS Code**
 | [Playwright REPL](https://github.com/stevez/playwright-repl/blob/main/packages/vscode/README.md) | VS Code extension — 10x faster tests, REPL panel, assert builder, element picker |
 | [`playwright-repl`](https://github.com/stevez/playwright-repl/blob/main/packages/cli/README.md) | CLI — terminal REPL with keyword commands, recording, replay, and piping |
 | [Dramaturg](https://github.com/stevez/playwright-repl/blob/main/packages/extension/README.md) | Chrome extension — console, script editor, recorder, CDP object tree |
+| [`@playwright-repl/runner`](https://github.com/stevez/playwright-repl/blob/main/packages/runner/README.md) | Test runner — 10x faster bridge execution with context reuse |
 | [`@playwright-repl/mcp`](https://github.com/stevez/playwright-repl/blob/main/packages/mcp/README.md) | MCP server — AI agents control your real Chrome browser |
 | [`@playwright-repl/core`](https://github.com/stevez/playwright-repl/blob/main/packages/core/README.md) | Shared engine, parser, and utilities |
 
@@ -133,6 +134,30 @@ playwright-repl-mcp   # extension connects automatically — no side panel neede
 > Playwright MCP and Playwriter control Chrome from outside via CDP relay. `@playwright-repl/mcp` runs Playwright natively inside Chrome via `playwright-crx` — enabling `expect()`, recording, and a full DevTools panel alongside AI.
 
 → **[Full MCP docs](https://github.com/stevez/playwright-repl/blob/main/packages/mcp/README.md)**
+
+---
+
+## Runner — @playwright-repl/runner
+
+Drop-in test runner that sits on top of Playwright Test. Bridge-compatible tests execute directly in the browser — **10x faster** than the standard test-server path.
+
+| Feature | Description |
+|---------|-------------|
+| **Bridge mode** | Compile test with esbuild, send to Chrome extension, execute in-browser (~50ms/test) |
+| **Node mode** | Falls back to standard Playwright runner for tests using Node APIs |
+| **Context reuse** | Shared browser context across tests — no teardown/recreate per test |
+| **pw-preload** | Injected via `NODE_OPTIONS`, patches `chromium.launch` for browser reuse |
+| **needsNode detection** | Static analysis of test files to route bridge vs node automatically |
+
+```bash
+# Run tests via pw CLI (bridge + node routing)
+pw test
+
+# Standard Playwright (for comparison)
+npx playwright test
+```
+
+→ **[Full runner docs](https://github.com/stevez/playwright-repl/blob/main/packages/runner/README.md)**
 
 ---
 

@@ -6,10 +6,10 @@ Interactive browser automation powered by Playwright — use it from **VS Code**
 
 | Package | Description |
 |---------|-------------|
-| [Playwright REPL](https://github.com/stevez/playwright-repl/blob/main/packages/vscode/README.md) | VS Code extension — 10x faster tests, REPL panel, assert builder, element picker |
+| [Playwright REPL](https://github.com/stevez/playwright-repl/blob/main/packages/vscode/README.md) | VS Code extension — faster bridge tests (~66ms/test), REPL panel, assert builder, element picker |
 | [`playwright-repl`](https://github.com/stevez/playwright-repl/blob/main/packages/cli/README.md) | CLI — terminal REPL with keyword commands, recording, replay, and piping |
 | [Dramaturg](https://github.com/stevez/playwright-repl/blob/main/packages/extension/README.md) | Chrome extension — console, script editor, recorder, CDP object tree |
-| [`@playwright-repl/runner`](https://github.com/stevez/playwright-repl/blob/main/packages/runner/README.md) | Test runner — 10x faster bridge execution with context reuse |
+| [`@playwright-repl/runner`](https://github.com/stevez/playwright-repl/blob/main/packages/runner/README.md) | Test runner — 1.5-2x faster bridge execution with context reuse |
 | [`@playwright-repl/mcp`](https://github.com/stevez/playwright-repl/blob/main/packages/mcp/README.md) | MCP server — AI agents control your real Chrome browser |
 | [`@playwright-repl/core`](https://github.com/stevez/playwright-repl/blob/main/packages/core/README.md) | Shared engine, parser, and utilities |
 
@@ -17,7 +17,7 @@ Interactive browser automation powered by Playwright — use it from **VS Code**
 
 ## VS Code Extension — Playwright REPL
 
-10x faster Playwright test execution with interactive REPL, assertion builder, and element picker — all inside VS Code.
+Faster Playwright test execution with interactive REPL, assertion builder, and element picker — all inside VS Code.
 
 | Feature | Description |
 |---------|-------------|
@@ -139,7 +139,7 @@ playwright-repl-mcp   # extension connects automatically — no side panel neede
 
 ## Runner — @playwright-repl/runner
 
-Drop-in test runner that sits on top of Playwright Test. Bridge-compatible tests execute directly in the browser — **10x faster** than the standard test-server path.
+Drop-in test runner that sits on top of Playwright Test. Bridge-compatible tests execute directly in the browser — **1.5-2x faster** than the standard test-server path.
 
 | Feature | Description |
 |---------|-------------|

@@ -855,14 +855,15 @@ export class Extension implements RunHooks {
       await this._models.selectedModel()?.updateTraceViewer(mode === 'run')?.willRunTests();
 
       // Phase 6: Direct bridge execution for bridge-eligible tests
-      // Ensure BrowserManager is running before trying direct bridge
-      if (this._settingsModel.showBrowser.get())
-        await this._ensureBrowserManager();
+      // Only attempt bridge when Show Browser is on (bridge needs headed browser + extension)
       let bridgeHandled = false;
-      try {
-        bridgeHandled = await this._tryDirectBridge(request, testRun);
-      } catch (e: unknown) {
-        this._logger.error(`[directBridge] error: ${(e as Error).stack || (e as Error).message}`);
+      if (this._settingsModel.showBrowser.get()) {
+        await this._ensureBrowserManager();
+        try {
+          bridgeHandled = await this._tryDirectBridge(request, testRun);
+        } catch (e: unknown) {
+          this._logger.error(`[directBridge] error: ${(e as Error).stack || (e as Error).message}`);
+        }
       }
       if (!bridgeHandled)
         await model.runTests(request, testListener, testRun.token);

@@ -2,6 +2,12 @@
 
 Drop-in replacement for `npx playwright test` with context reuse. Keeps the browser open between tests — no teardown/recreate per test.
 
+## Performance
+
+Bridge mode sends test scripts directly to the browser, bypassing the Playwright test runner entirely. This eliminates the per-run overhead (worker startup, TypeScript compilation, fixture setup) that dominates single-test execution time in the IDE.
+
+Node-mode tests that need server-side APIs fall back to the standard Playwright test runner, but reuse the existing browser via CDP instead of launching a new one.
+
 ## Quick Start
 
 ```bash
@@ -23,8 +29,8 @@ All Playwright CLI flags work — `pw` passes them through.
 
 Standard Playwright creates a new browser context for every test. `pw test` reuses the same persistent browser context across tests in the same worker.
 
-- **Bridge mode** — compiles the test with esbuild, sends it to the Chrome extension for in-browser execution
-- **Node mode** — falls back to standard Playwright for tests that use Node-only APIs (fs, net, etc.)
+- **Bridge mode** — compiles the test with esbuild, sends it to the Chrome extension for in-browser execution. Bypasses the Playwright test runner for near-instant feedback in the IDE
+- **Node mode** — falls back to standard Playwright for tests that use Node-only APIs (fs, net, etc.). Reuses the existing browser via CDP when available
 - **Automatic routing** — static analysis detects which mode each test needs
 
 ## pw Commands

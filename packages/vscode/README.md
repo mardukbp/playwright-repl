@@ -4,6 +4,12 @@ Interactive browser automation inside VS Code — Test Explorer, live REPL, asse
 
 ![Playwright REPL](images/hero.png)
 
+## Performance
+
+With Show Browser enabled, browser-only tests bypass the Playwright test runner entirely — the script is sent directly to the browser via the extension bridge, eliminating the per-run overhead (worker startup, TypeScript compilation, fixture setup). This gives near-instant feedback when iterating on individual tests.
+
+Node tests that need `fs`, `net`, etc. fall back to the standard Playwright test runner with CDP browser reuse. Headless mode uses standard Playwright with parallel workers.
+
 ## Features
 
 ### Test Explorer
@@ -55,7 +61,10 @@ Record browser interactions as Playwright commands. Click elements, fill forms, 
 
 ### Browser Reuse
 
-REPL, Test Explorer, Recorder, and Picker all share the same headed browser. No extra browser windows. The browser stays open between test runs — no context setup overhead per test.
+REPL, Test Explorer, Recorder, and Picker all share the same headed browser via CDP. No extra browser windows — tests run in the persistent context where the Chrome extension lives. The browser stays open between test runs with zero context setup overhead.
+
+- **Bridge tests** — script sent directly to browser, no test runner overhead
+- **Node tests** — reuse browser via `connectOverCDP`, no separate browser launch
 
 ## Workflow
 

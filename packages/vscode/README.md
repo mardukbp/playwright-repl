@@ -4,6 +4,22 @@ Interactive browser automation inside VS Code — Test Explorer, live REPL, asse
 
 ![Playwright REPL](images/hero.png)
 
+## Built on Playwright Test for VS Code
+
+This extension is built upon Microsoft's official [Playwright Test for VS Code](https://marketplace.visualstudio.com/items?itemName=ms-playwright.playwright) extension (Apache 2.0). Both extensions can coexist — you can keep the official one installed and use this alongside it. They share the same `playwright.config.ts` and test files.
+
+**What's new:**
+- REPL panel — interactive command execution with keyword commands and JavaScript
+- Locator panel — pick elements, inspect locators and ARIA snapshots
+- Assert Builder — build and verify 13 Playwright assertion matchers interactively
+- Recorder — capture browser interactions as test commands
+- Bridge execution — browser-only tests bypass the test runner for near-instant feedback
+
+**What's the same:**
+- Test Explorer — same familiar interface for discovering and running tests
+- Debugger — step through tests with breakpoints
+- Trace Viewer — inspect test traces and screenshots
+
 ## Performance
 
 With Show Browser enabled, browser-only tests bypass the Playwright test runner entirely — the script is sent directly to the browser via the extension bridge, eliminating the per-run overhead (worker startup, TypeScript compilation, fixture setup). This gives near-instant feedback when iterating on individual tests.
@@ -57,7 +73,7 @@ Supports negation (`not` checkbox) and editable assertions.
 
 ### Recorder
 
-Record browser interactions as Playwright commands. Click elements, fill forms, navigate — the recorder captures each action as `.pw` keyword commands or Playwright JavaScript.
+Record browser interactions as Playwright JavaScript. Click elements, fill forms, navigate — the recorder captures each action as executable test code.
 
 ### Browser Reuse
 
@@ -96,9 +112,9 @@ REPL, Test Explorer, Recorder, and Picker all share the same headed browser via 
 
 ## Requirements
 
-- VS Code 1.86+
+- VS Code 1.93+
 - Node.js 18+
-- `@playwright/test` 1.59+ in your project
+- `@playwright/test` 1.58+ in your project
 
 ## Panels
 

@@ -28,11 +28,14 @@ import type { TestModel } from './testModel';
 import { TestServerInterface } from './upstream/testServerInterface';
 
 // ─── preload injection for CDP browser reuse ────────────────────────────────
-// Use forward slashes — backslashes get stripped inside NODE_OPTIONS on Windows
-const _cdpPreloadPath = path.join(__dirname, 'cdpPreload.cjs').replace(/\\/g, '/');
+// Resolve from runner package; use forward slashes (backslashes stripped in NODE_OPTIONS on Windows)
+let _cdpPreloadPath = '';
+try {
+  _cdpPreloadPath = require.resolve('@playwright-repl/runner/dist/cdpPreload.cjs').replace(/\\/g, '/');
+} catch {}
 
 function preloadEnv(): Record<string, string | undefined> {
-  if (!fs.existsSync(_cdpPreloadPath))
+  if (!_cdpPreloadPath)
     return {};
   const existing = process.env.NODE_OPTIONS || '';
   return {
@@ -331,7 +334,7 @@ export class PlaywrightTestServer {
           PW_TEST_SOURCE_TRANSFORM: this._model.config.version < kMinTestPausedVersion ? require.resolve('./debugTransform') : undefined,
           PW_TEST_SOURCE_TRANSFORM_SCOPE: this._model.config.version < kMinTestPausedVersion ? testDirs.join(pathSeparator) : undefined,
           PWDEBUG: 'console',
-          // Inject pw-preload for context reuse + bridge mode
+          // Inject CDP preload for browser reuse
           ...preloadEnv(),
         },
         program: paths.cli,
@@ -432,7 +435,7 @@ export class PlaywrightTestServer {
           FORCE_COLOR: '1',
           // Reset VSCode's options that affect nested Electron.
           ELECTRON_RUN_AS_NODE: undefined,
-          // Inject pw-preload for context reuse + bridge mode
+          // Inject CDP preload for browser reuse
           ...preloadEnv(),
         };
       },

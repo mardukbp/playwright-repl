@@ -3,3 +3,8 @@ node_modules/**
 build.mjs
 tsconfig.json
 *.map
+test/**
+test-results/**
+test-runner-e2e.mjs
+examples/**
+.gitignore

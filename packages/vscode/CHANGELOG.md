@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.21.2
+
+**2026-04-01**
+
+### Fixes
+
+- Bundle `@playwright-repl/core` and `@playwright-repl/runner` as npm dependencies
+- Use absolute GitHub URLs for marketplace images
+- Light gallery banner to match icon background
+
+### Docs
+
+- Added GIF demos for REPL, Locator, Assert Builder, Recorder, and Browser REPL
+- Added Browser REPL section with Dramaturg Chrome extension features
+- Documented `.clear` and `.history` commands
+
 ## 0.21.0
 
 **2026-03-31**

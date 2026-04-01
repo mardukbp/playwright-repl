@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.21.2 — npm Publish & VS Code Marketplace
+
+**2026-04-01**
+
+### Features
+
+- **VS Code Marketplace**: Published to the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=playwright-repl.playwright-repl-vscode). ([#510](https://github.com/stevez/playwright-repl/issues/510))
+- **npm publish**: Published `@playwright-repl/core` and `@playwright-repl/runner` to npm.
+
+### Docs
+
+- **GIF demos**: Added animated GIFs for REPL, Locator, Assert Builder, Recorder, and Browser REPL. ([#514](https://github.com/stevez/playwright-repl/pull/514))
+- **VS Code README**: Screenshots, GIFs, Browser REPL section with Dramaturg link. ([#511](https://github.com/stevez/playwright-repl/pull/511), [#513](https://github.com/stevez/playwright-repl/pull/513), [#516](https://github.com/stevez/playwright-repl/pull/516))
+- **VS Code CHANGELOG**: Created for marketplace Changelog tab.
+
+### Fixes
+
+- **Recorder empty line**: Fixed recorder leaving an empty line gap when cursor is on a blank line. ([#514](https://github.com/stevez/playwright-repl/pull/514))
+- **Marketplace images**: Use absolute GitHub URLs for marketplace rendering. ([#517](https://github.com/stevez/playwright-repl/pull/517))
+
 ## v0.21.0 — VS Code Extension, DevTools REPL & Runner
 
 **2026-03-31**

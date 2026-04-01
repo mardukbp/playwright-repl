@@ -4,10 +4,10 @@
   "description": "Playwright REPL for VS Code — Test Explorer, REPL, assert builder, and element picker",
   "icon": "images/dramaturg-icon.png",
   "galleryBanner": {
-    "color": "#1e1e1e",
-    "theme": "dark"
+    "color": "#ffffff",
+    "theme": "light"
   },
-  "version": "0.21.0",
+  "version": "0.21.2",
   "private": true,
   "publisher": "playwright-repl",
   "repository": {

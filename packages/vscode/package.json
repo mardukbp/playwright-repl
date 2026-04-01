@@ -1,5 +1,5 @@
 {
-  "name": "@playwright-repl/vscode",
+  "name": "playwright-repl-vscode",
   "displayName": "Playwright REPL",
   "description": "Playwright REPL for VS Code — Test Explorer, REPL, assert builder, and element picker",
   "icon": "images/dramaturg-icon.png",
@@ -167,13 +167,22 @@
         },
         "playwright-repl.updateSnapshots": {
           "type": "string",
-          "enum": ["all", "changed", "missing", "none"],
+          "enum": [
+            "all",
+            "changed",
+            "missing",
+            "none"
+          ],
           "default": "missing",
           "description": "%configuration.playwright-repl.updateSnapshots%"
         },
         "playwright-repl.updateSourceMethod": {
           "type": "string",
-          "enum": ["overwrite", "patch", "3way"],
+          "enum": [
+            "overwrite",
+            "patch",
+            "3way"
+          ],
           "default": "3way",
           "description": "%configuration.playwright-repl.updateSourceMethod%"
         },
@@ -259,6 +268,7 @@
     "@types/vscode": "1.93.0",
     "@types/which": "^3.0.3",
     "@types/ws": "^8.5.3",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.25.0"
   }
 }

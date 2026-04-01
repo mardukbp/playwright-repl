@@ -2,7 +2,7 @@
 
 Interactive browser automation inside VS Code — Test Explorer, live REPL, assertion builder, and element picker.
 
-<img src="images/hero.png" width="75%">
+<img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/hero.png" width="75%">
 
 ## Built on Playwright Test for VS Code
 
@@ -32,7 +32,7 @@ Node tests that need `fs`, `net`, etc. fall back to the standard Playwright test
 
 Run Playwright tests with a persistent browser and context reuse. Works with individual tests and files. Folders fall back to the standard multi-worker path.
 
-<img src="images/test-explorer.png" width="50%">
+<img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/test-explorer.png" width="50%">
 
 ### REPL Panel
 
@@ -46,7 +46,7 @@ Interactive command panel in the bottom bar. Type keyword commands (`snapshot`, 
 - Execution timing
 - Local commands: `help`, `.aliases`, `.status`, `.history`, `locator`, `page`
 
-<img src="images/repl.gif" width="75%">
+<img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/repl.gif" width="75%">
 
 ### Locator Panel
 
@@ -57,7 +57,7 @@ Pick elements from the browser and inspect their locator and ARIA snapshot.
 - **Editable locator** — modify and experiment
 - **ARIA snapshot** — accessibility tree for the picked element
 
-<img src="images/locator.gif" width="75%">
+<img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/locator.gif" width="75%">
 
 ### Assert Builder
 
@@ -71,13 +71,13 @@ Matchers: `toContainText`, `toHaveText`, `toBeVisible`, `toBeHidden`, `toBeAttac
 
 Supports negation (`not` checkbox) and editable assertions.
 
-<img src="images/assert.gif" width="75%">
+<img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/assert.gif" width="75%">
 
 ### Recorder
 
 Record browser interactions as Playwright JavaScript. Click elements, fill forms, navigate — the recorder captures each action as executable test code.
 
-<img src="images/recording.gif" width="75%">
+<img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/recording.gif" width="75%">
 
 ### Browser REPL
 
@@ -92,7 +92,7 @@ The [Dramaturg](https://chromewebstore.google.com/detail/dramaturg/ppbkmncnmjkfp
 
 The VS Code extension automatically installs Dramaturg in the launched browser. For standalone use or more features, install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/dramaturg/ppbkmncnmjkfppilnmplpokdfagobipa).
 
-<img src="images/browser-repl.gif" width="75%">
+<img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/browser-repl.gif" width="75%">
 
 ### Browser Reuse
 

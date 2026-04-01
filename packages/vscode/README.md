@@ -39,6 +39,8 @@ Run Playwright tests with a persistent browser and context reuse. Works with ind
 Interactive command panel in the bottom bar. Type keyword commands (`snapshot`, `click`, `fill`, `goto`) or JavaScript (`await page.title()`, `page.locator('h1').click()`).
 
 - Command history (up/down arrows)
+- `.clear` or `Ctrl+L` to clear console output
+- `.history` to show command history, `.history clear` to reset
 - Inline screenshot display
 - PDF save
 - Execution timing
@@ -76,6 +78,21 @@ Supports negation (`not` checkbox) and editable assertions.
 Record browser interactions as Playwright JavaScript. Click elements, fill forms, navigate — the recorder captures each action as executable test code.
 
 <img src="images/recording.gif" width="75%">
+
+### Browser REPL
+
+The [Dramaturg](https://chromewebstore.google.com/detail/dramaturg/ppbkmncnmjkfppilnmplpokdfagobipa) Chrome extension adds an interactive REPL directly in the browser — available as a side panel or a DevTools tab.
+
+- Auto-detects keyword commands (`.pw`) or Playwright API / JavaScript
+- Expandable object tree — inspect results like Chrome DevTools
+- Auto-attach to the active page — switch tabs and the REPL follows
+- Inline screenshot preview and YAML accessibility tree viewer
+- Command history and autocomplete
+- Available as a side panel or a DevTools tab
+
+The VS Code extension automatically installs Dramaturg in the launched browser. For standalone use or more features, install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/dramaturg/ppbkmncnmjkfppilnmplpokdfagobipa).
+
+<img src="images/browser-repl.gif" width="75%">
 
 ### Browser Reuse
 

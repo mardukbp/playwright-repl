@@ -52,6 +52,8 @@ for (const item of items) {
 
 // ─── 3. Resolve workspace:* refs to real versions ────────────────────────
 const pkg = JSON.parse(fs.readFileSync(path.join(tmpDir, 'package.json'), 'utf8'));
+delete pkg.devDependencies;
+delete pkg.scripts;
 for (const [name, ver] of Object.entries(pkg.dependencies || {})) {
   if (ver.startsWith('workspace:')) {
     const depPkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'packages', name.split('/').pop(), 'package.json'), 'utf8'));

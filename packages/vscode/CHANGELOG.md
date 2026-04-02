@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.21.7
+## 0.21.8
 
 **2026-04-02**
 
@@ -8,6 +8,7 @@
 
 - Fix VSIX missing `node_modules` on marketplace — restore legacy packaging with `npm install --production`
 - Remove platform-specific `esbuild` binary from VSIX — use portable `esbuild-wasm` only
+- Fix `workspace:*` in published npm packages — use `pnpm publish` instead of `npm publish`
 
 ## 0.21.6
 

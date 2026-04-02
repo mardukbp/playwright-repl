@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.21.9 — Mac Bridge Fix
+
+**2026-04-02**
+
+### Fixes
+
+- **Mac bridge timeout**: Use `127.0.0.1` instead of `localhost`, dynamic CDP port, SW fallback bridge port injection. ([#550](https://github.com/stevez/playwright-repl/pull/550))
+
+## v0.21.8 — VSIX Packaging Fix
+
+**2026-04-02**
+
+### Fixes
+
+- **VSIX packaging**: Restore legacy `npm install --production` in temp dir — nft/yauzl append was stripped by marketplace. ([#549](https://github.com/stevez/playwright-repl/pull/549))
+- **Remove platform esbuild**: Remove `esbuild` from runner deps, keep portable `esbuild-wasm` only — VSIX now works cross-platform.
+- **npm publish**: Use `pnpm publish` to correctly resolve `workspace:*` refs.
+
+## v0.21.7 — VSIX Marketplace Fix
+
+**2026-04-02**
+
+### Fixes
+
+- **VSIX missing node_modules**: Marketplace VSIX was 12.7 MB (missing deps) vs 34 MB locally — `vsce publish -i` stripped appended node_modules. Restored legacy temp-dir packaging. ([#549](https://github.com/stevez/playwright-repl/pull/549))
+
 ## v0.21.6 — esbuild-wasm & Publish Script
 
 **2026-04-02**

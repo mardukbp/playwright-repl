@@ -7,8 +7,24 @@
 ### Fixes
 
 - Fix Mac: bridge connection timeout — use `127.0.0.1`, dynamic CDP port, SW fallback injection
-- Fix VSIX missing `node_modules` on marketplace — restore legacy packaging
+
+## 0.21.8
+
+**2026-04-02**
+
+### Fixes
+
+- Fix VSIX missing `node_modules` on marketplace — restore legacy packaging with `npm install --production`
 - Remove platform-specific `esbuild` binary from VSIX — use portable `esbuild-wasm` only
+- Fix npm publish: use `pnpm publish` to resolve `workspace:*` refs
+
+## 0.21.7
+
+**2026-04-02**
+
+### Fixes
+
+- Fix VSIX packaging: restore legacy temp-dir approach (nft/yauzl append was stripped by marketplace)
 
 ## 0.21.6
 

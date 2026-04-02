@@ -66,7 +66,7 @@ describe('offscreen bridge', () => {
   it('requests bridge port and connects WebSocket on init', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'get-bridge-port' });
     expect(MockWebSocket.instances).toHaveLength(1);
-    expect(MockWebSocket.instances[0].url).toBe('ws://localhost:9876');
+    expect(MockWebSocket.instances[0].url).toBe('ws://127.0.0.1:9876');
   });
 
   it('uses default port 9876 when get-bridge-port returns falsy', async () => {
@@ -77,7 +77,7 @@ describe('offscreen bridge', () => {
     await import('../src/offscreen/offscreen');
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(MockWebSocket.instances[0].url).toBe('ws://localhost:9876');
+    expect(MockWebSocket.instances[0].url).toBe('ws://127.0.0.1:9876');
   });
 
   it('relays command to service worker and sends result back', async () => {
@@ -159,7 +159,7 @@ describe('offscreen bridge', () => {
     await vi.advanceTimersByTimeAsync(3000);
 
     expect(MockWebSocket.instances).toHaveLength(2);
-    expect(MockWebSocket.instances[1].url).toBe('ws://localhost:9876');
+    expect(MockWebSocket.instances[1].url).toBe('ws://127.0.0.1:9876');
   });
 
   it('reconnects after WebSocket constructor throws', async () => {
@@ -172,7 +172,7 @@ describe('offscreen bridge', () => {
         callCount++;
         if (callCount === 1) throw new Error('connection refused');
         // Second call succeeds — use MockWebSocket
-        const inst = new MockWebSocket('ws://localhost:9999');
+        const inst = new MockWebSocket('ws://127.0.0.1:9999');
         return inst as any;
       }
     };
@@ -200,7 +200,7 @@ describe('offscreen bridge', () => {
 
     // New WS on new port
     const newWs = MockWebSocket.instances[MockWebSocket.instances.length - 1];
-    expect(newWs.url).toBe('ws://localhost:1234');
+    expect(newWs.url).toBe('ws://127.0.0.1:1234');
   });
 
   it('clears pending reconnect timer on port change', async () => {
@@ -219,7 +219,7 @@ describe('offscreen bridge', () => {
     // All new connections should be to the new port only
     const newConnections = MockWebSocket.instances.slice(countBefore);
     expect(newConnections.length).toBeGreaterThanOrEqual(1);
-    expect(newConnections.every(ws => ws.url === 'ws://localhost:5555')).toBe(true);
+    expect(newConnections.every(ws => ws.url === 'ws://127.0.0.1:5555')).toBe(true);
   });
 
   it('handles bridge-port-changed when ws is null (constructor threw)', async () => {
@@ -231,7 +231,7 @@ describe('offscreen bridge', () => {
       constructor() {
         callCount++;
         if (callCount === 1) throw new Error('connection refused');
-        const inst = new MockWebSocket('ws://localhost:7777');
+        const inst = new MockWebSocket('ws://127.0.0.1:7777');
         return inst as any;
       }
     };
@@ -244,7 +244,7 @@ describe('offscreen bridge', () => {
     onMessageListener({ type: 'bridge-port-changed', port: 7777 });
 
     expect(MockWebSocket.instances).toHaveLength(1);
-    expect(MockWebSocket.instances[0].url).toBe('ws://localhost:7777');
+    expect(MockWebSocket.instances[0].url).toBe('ws://127.0.0.1:7777');
   });
 
   it('onerror handler is a no-op', () => {

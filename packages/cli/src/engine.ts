@@ -1,7 +1,7 @@
 /**
  * Engine — in-process Playwright backend.
  *
- * Wraps BrowserServerBackend directly, eliminating the daemon process.
+ * Wraps BrowserBackend directly, eliminating the daemon process.
  * Provides the same interface as DaemonConnection: run(args), connected, close().
  *
  * Three connection modes:
@@ -20,8 +20,9 @@ export type { EngineOpts, EngineResult, ParsedArgs };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface PlaywrightDeps {
-  BrowserServerBackend: new (config: any, factory: any, opts: any) => any;
-  contextFactory: (config: any) => { createContext: (info: any, signal: AbortSignal, opts: any) => Promise<{ browserContext: any; close: () => Promise<void> }> };
+  BrowserBackend: new (config: any, browserContext: any, tools: any[]) => any;
+  createBrowser: (config: any, clientInfo: any) => Promise<any>;
+  browserTools: any[];
   playwright: any;
   registry: { findExecutable: (name: string) => { executablePath: () => string | undefined } | undefined };
   resolveConfig: (config: any) => Promise<any> | any;
@@ -38,18 +39,17 @@ function loadDeps(): PlaywrightDeps {
   if (_deps) return _deps;
   const require = createRequire(import.meta.url);
   // Resolve absolute paths to bypass Playwright's exports map.
-  const pwDir = path.dirname(require.resolve('playwright/package.json'));
-  const pwReq = (sub: string) => require(path.join(pwDir, sub));
   const pwCoreDir = path.dirname(require.resolve('playwright-core/package.json'));
   const pwCoreReq = (sub: string) => require(path.join(pwCoreDir, sub));
   _deps = {
-    BrowserServerBackend:     pwReq('lib/mcp/browser/browserServerBackend.js').BrowserServerBackend,
-    contextFactory:           pwReq('lib/mcp/browser/browserContextFactory.js').contextFactory,
+    BrowserBackend:           pwCoreReq('lib/tools/backend/browserBackend.js').BrowserBackend,
+    createBrowser:            pwCoreReq('lib/tools/mcp/browserFactory.js').createBrowser,
+    browserTools:             pwCoreReq('lib/tools/backend/tools.js').browserTools,
     playwright:               require('playwright-core'),
     registry:                 pwCoreReq('lib/server/registry/index.js').registry,
-    resolveConfig:            pwReq('lib/mcp/browser/config.js').resolveConfig,
-    commands:                 pwReq('lib/cli/daemon/commands.js').commands,
-    parseCommand:             pwReq('lib/cli/daemon/command.js').parseCommand,
+    resolveConfig:            pwCoreReq('lib/tools/mcp/config.js').resolveConfig,
+    commands:                 pwCoreReq('lib/tools/cli-daemon/commands.js').commands,
+    parseCommand:             pwCoreReq('lib/tools/cli-daemon/command.js').parseCommand,
   };
   return _deps;
 }
@@ -84,11 +84,12 @@ export class Engine {
     const deps = this._deps || loadDeps();
     const config = await this._buildConfig(opts, deps);
 
-    const cwd = url.pathToFileURL(process.cwd()).href;
+    const cwd = process.cwd();
     const clientInfo = {
       name: 'playwright-repl',
       version: replVersion,
-      roots: [{ uri: cwd, name: 'cwd' }],
+      cwd,
+      roots: [{ uri: url.pathToFileURL(cwd).href, name: 'cwd' }],
       timestamp: Date.now(),
     };
 
@@ -162,17 +163,12 @@ export class Engine {
       console.log('Ready! Side panel can send commands.');
     } else {
       // Launch/connect mode: eagerly create context for immediate feedback.
-      const factory = deps.contextFactory(config);
-      const { browserContext, close } = await factory.createContext(
-        clientInfo, new AbortController().signal, {},
-      );
+      const browser = await deps.createBrowser(config, clientInfo);
+      const browserContext = browser.contexts()[0] || await browser.newContext();
       this._browserContext = browserContext;
-      this._close = close;
+      this._close = () => browser.close();
 
-      const existingContextFactory = {
-        createContext: () => Promise.resolve({ browserContext, close }),
-      };
-      this._backend = new deps.BrowserServerBackend(config, existingContextFactory, { allTools: true });
+      this._backend = new deps.BrowserBackend(config, browserContext, deps.browserTools);
       await this._backend.initialize?.(clientInfo);
       this._connected = true;
 
@@ -301,7 +297,7 @@ export class Engine {
       this._commandServer = null;
     }
     if (this._backend) {
-      this._backend.serverClosed();
+      await this._backend.dispose();
       this._backend = null;
     }
     if (this._close) {
@@ -318,17 +314,12 @@ export class Engine {
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   private async _connectToCdp(deps: PlaywrightDeps, config: any, clientInfo: any): Promise<void> {
-    const factory = deps.contextFactory(config);
-    const { browserContext, close } = await factory.createContext(
-      clientInfo, new AbortController().signal, {},
-    );
+    const browser = await deps.createBrowser(config, clientInfo);
+    const browserContext = browser.contexts()[0] || await browser.newContext();
     this._browserContext = browserContext;
-    this._close = close;
+    this._close = () => browser.close();
 
-    const existingContextFactory = {
-      createContext: () => Promise.resolve({ browserContext, close }),
-    };
-    this._backend = new deps.BrowserServerBackend(config, existingContextFactory, { allTools: true });
+    this._backend = new deps.BrowserBackend(config, browserContext, deps.browserTools);
     await this._backend.initialize?.(clientInfo);
     this._connected = true;
 

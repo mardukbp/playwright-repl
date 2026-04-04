@@ -6,15 +6,35 @@ import { vscode } from './common';
 
 const pickBtn = document.getElementById('pickBtn') as HTMLButtonElement;
 const locatorInput = document.getElementById('locator') as HTMLInputElement;
+const ariaPreview = document.getElementById('ariaPreview') as HTMLTextAreaElement;
 const assertType = document.getElementById('assertType') as HTMLSelectElement;
 const negateCheckbox = document.getElementById('negateCheckbox') as HTMLInputElement;
 const argInput = document.getElementById('argInput') as HTMLInputElement;
-const assertionInput = document.getElementById('assertion') as HTMLInputElement;
+const locatorMode = document.getElementById('locatorMode')!;
+const snapshotMode = document.getElementById('snapshotMode')!;
+const assertionInput = document.getElementById('assertion') as HTMLTextAreaElement;
 const verifyBtn = document.getElementById('verifyBtn') as HTMLButtonElement;
 const verifyResult = document.getElementById('verifyResult')!;
+const modeRadios = document.querySelectorAll<HTMLInputElement>('input[name="assertMode"]');
 
 let types: { value: string; label: string; needsArg: boolean; argType?: string }[] = [];
 let currentLocator = '';
+let currentMode: 'locator' | 'snapshot' = 'locator';
+
+// ─── Mode switching ──────────────────────────────────────────────────────
+
+function switchMode(mode: 'locator' | 'snapshot') {
+  currentMode = mode;
+  locatorMode.style.display = mode === 'locator' ? 'block' : 'none';
+  snapshotMode.style.display = mode === 'snapshot' ? 'block' : 'none';
+  rebuild();
+}
+
+for (const radio of modeRadios) {
+  radio.addEventListener('change', () => {
+    if (radio.checked) switchMode(radio.value as 'locator' | 'snapshot');
+  });
+}
 
 // ─── Event handlers ───────────────────────────────────────────────────────
 
@@ -23,11 +43,16 @@ pickBtn.addEventListener('click', () => {
 });
 
 function rebuild() {
-  const typeDef = types.find(t => t.value === assertType.value);
-  argInput.style.display = typeDef?.needsArg ? 'block' : 'none';
-  argInput.placeholder = typeDef?.argType === 'pair' ? 'attribute, value' :
-    typeDef?.argType === 'number' ? 'Count' : 'Expected value';
-  vscode.postMessage({ method: 'rebuild', params: { type: assertType.value, arg: argInput.value, negate: negateCheckbox.checked } });
+  if (currentMode === 'snapshot') {
+    vscode.postMessage({ method: 'rebuildSnapshot', params: { snapshot: ariaPreview.value, negate: negateCheckbox.checked } });
+  } else {
+    const typeDef = types.find(t => t.value === assertType.value);
+    const needsArg = typeDef?.needsArg ?? false;
+    argInput.style.display = needsArg ? 'block' : 'none';
+    argInput.placeholder = typeDef?.argType === 'pair' ? 'attribute, value' :
+      typeDef?.argType === 'number' ? 'Count' : 'Expected value';
+    vscode.postMessage({ method: 'rebuild', params: { type: assertType.value, arg: argInput.value, negate: negateCheckbox.checked } });
+  }
 }
 
 assertType.addEventListener('change', rebuild);
@@ -55,12 +80,15 @@ window.addEventListener('message', event => {
     currentLocator = params.locator;
     locatorInput.value = params.locator;
     assertionInput.value = params.assertion;
+    autoSizeAssertion();
+    if (params.ariaSnapshot)
+      ariaPreview.value = params.ariaSnapshot;
     if (params.types) populateTypes(params.types);
-    // Detect current type from assertion
     detectType(params.assertion);
     verifyResult.style.display = 'none';
   } else if (method === 'assertionUpdated') {
     assertionInput.value = params.assertion;
+    autoSizeAssertion();
     verifyResult.style.display = 'none';
   } else if (method === 'verifyProcessing') {
     verifyBtn.disabled = params.processing;
@@ -98,6 +126,11 @@ window.addEventListener('message', event => {
   }
 });
 
+function autoSizeAssertion() {
+  const lines = assertionInput.value.split('\n').length;
+  assertionInput.rows = Math.max(2, Math.min(lines + 1, 12));
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function populateTypes(t: typeof types) {
@@ -112,17 +145,18 @@ function populateTypes(t: typeof types) {
 }
 
 function detectType(assertion: string) {
+  if (assertion.includes('.toMatchAriaSnapshot(')) {
+    // Switch to snapshot mode
+    (document.querySelector('input[name="assertMode"][value="snapshot"]') as HTMLInputElement).checked = true;
+    switchMode('snapshot');
+    return;
+  }
   for (const type of types) {
     if (assertion.includes(`.${type.value}(`)) {
       assertType.value = type.value;
-      const typeDef = types.find(t => t.value === type.value);
-      argInput.style.display = typeDef?.needsArg ? 'block' : 'none';
-      // Extract arg from assertion
-      const argMatch = assertion.match(new RegExp(`\\.${type.value}\\((.*)\\)`));
-      if (argMatch && argMatch[1]) {
-        const cleaned = argMatch[1].replace(/^['"]|['"]$/g, '');
-        argInput.value = cleaned;
-      }
+      // Stay in locator mode
+      (document.querySelector('input[name="assertMode"][value="locator"]') as HTMLInputElement).checked = true;
+      switchMode('locator');
       return;
     }
   }

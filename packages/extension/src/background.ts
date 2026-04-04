@@ -7,6 +7,58 @@ import type { PwReplSettings } from './panel/lib/settings';
 import { parseReplCommand } from './panel/lib/commands';
 import { detectMode } from './panel/lib/execute';
 
+// ─── Patch toMatchAriaSnapshot ──────────────────────────────────────────────
+// toMatchAriaSnapshot requires currentTestInfo() which only exists inside the
+// Playwright Test runner. We wrap expect() with a Proxy that intercepts this
+// matcher and calls locator._expect() directly, bypassing the test-info check
+// while using Playwright's own matching engine.
+// Note: _expect() is a private Playwright API — may break on upgrades.
+
+function dedentSnapshot(snapshot: string) {
+  const lines = snapshot.split('\n').filter(l => l.trim());
+  const prefix = Math.min(...lines.map(l => l.match(/^(\s*)/)![1].length));
+  return lines.map(line => line.substring(prefix)).join('\n');
+}
+
+function makeAriaSnapshotMatcher(locator: any, isNot: boolean) {
+  return async (expected: string, options?: { timeout?: number }) => {
+    const timeout = options?.timeout ?? 5000;
+    const normalized = dedentSnapshot(expected);
+    const { matches: pass, received } = await locator._expect(
+      'to.match.aria',
+      { expectedValue: normalized, isNot, timeout },
+    );
+    if (isNot ? pass : !pass) {
+      const actual = received?.raw ?? '';
+      const expectedOneLine = normalized.replace(/\n/g, ' ↵ ');
+      const actualOneLine = actual.replace(/\n/g, ' ↵ ');
+      throw new Error(
+        isNot
+          ? `toMatchAriaSnapshot (not)\nExpected: not to match\nReceived: ${actualOneLine}\n\nFull expected:\n${normalized}\n\nFull received:\n${actual}`
+          : `toMatchAriaSnapshot\nExpected: ${expectedOneLine}\nReceived: ${actualOneLine}\n\nFull expected:\n${normalized}\n\nFull received:\n${actual}`
+      );
+    }
+  };
+}
+
+function wrapExpectResult(e: any, locator: any, isNot = false) {
+  return new Proxy(e, {
+    get(obj, prop) {
+      if (prop === 'toMatchAriaSnapshot')
+        return makeAriaSnapshotMatcher(locator, isNot);
+      if (prop === 'not')
+        return wrapExpectResult(Reflect.get(obj, prop), locator, !isNot);
+      return Reflect.get(obj, prop);
+    },
+  });
+}
+
+const _origExpect = expect;
+const patchedExpect: typeof expect = Object.assign(
+  (target: any) => wrapExpectResult(_origExpect(target), target),
+  _origExpect,
+);
+
 // ─── Test Framework (for pw test browser path) ──────────────────────────────
 
 // Install test framework on globalThis so compiled tests can use it directly.
@@ -113,7 +165,7 @@ async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; 
     }
 
     activeTabId = tabId;
-    Object.assign(globalThis, { page: currentPage, context: app.context(), crxApp: app, activeTabId, expect });
+    Object.assign(globalThis, { page: currentPage, context: app.context(), crxApp: app, activeTabId, expect: patchedExpect });
 
     // Set up event listeners on globalThis so page-scripts can read them
     (globalThis as any).__consoleMessages = [];

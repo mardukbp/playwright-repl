@@ -58,6 +58,7 @@ export class AssertView extends DisposableBase implements vscodeTypes.WebviewVie
   private _picker: Picker | undefined;
   private _locator = '';
   private _assertion = '';
+  private _ariaSnapshot = '';
 
   constructor(vscode: vscodeTypes.VSCode, extensionUri: vscodeTypes.Uri) {
     super();
@@ -79,16 +80,17 @@ export class AssertView extends DisposableBase implements vscodeTypes.WebviewVie
   }
 
   /** Called from pick event — fills locator and default assertion */
-  public async showAssertion(locator: string, assertion: string, elementInfo?: { tag?: string; attributes?: Record<string, string> }) {
+  public async showAssertion(locator: string, assertion: string, elementInfo?: { tag?: string; attributes?: Record<string, string> }, ariaSnapshot?: string) {
     this._locator = locator;
     this._assertion = assertion;
+    this._ariaSnapshot = ariaSnapshot || '';
     const types = filterTypes(elementInfo?.tag, elementInfo?.attributes?.type);
     await this._vscode.commands.executeCommand('playwright-repl.assertView.focus');
     if (!this._view)
       await new Promise(r => setTimeout(r, 200));
     void this._view?.webview.postMessage({
       method: 'update',
-      params: { locator, assertion, types },
+      params: { locator, assertion, types, ariaSnapshot: this._ariaSnapshot },
     });
   }
 
@@ -109,6 +111,8 @@ export class AssertView extends DisposableBase implements vscodeTypes.WebviewVie
         await this._verify(data.params.assertion);
       } else if (data.method === 'rebuild') {
         this._rebuildAssertion(data.params.type, data.params.arg, data.params.negate);
+      } else if (data.method === 'rebuildSnapshot') {
+        this._rebuildSnapshotAssertion(data.params.snapshot, data.params.negate);
       } else if (data.method === 'locatorChanged') {
         this._locator = data.params.locator;
       }
@@ -139,6 +143,20 @@ export class AssertView extends DisposableBase implements vscodeTypes.WebviewVie
     } else {
       assertion = `await expect(${target}).${not}${type}();`;
     }
+
+    this._assertion = assertion;
+    void this._view?.webview.postMessage({
+      method: 'assertionUpdated',
+      params: { assertion },
+    });
+  }
+
+  private _rebuildSnapshotAssertion(snapshot?: string, negate?: boolean) {
+    if (!this._locator) return;
+    const not = negate ? 'not.' : '';
+    const assertion = snapshot
+      ? `await expect(${this._locator}).${not}toMatchAriaSnapshot(\`\n${snapshot}\n\`);`
+      : `await expect(${this._locator}).${not}toMatchAriaSnapshot(\`\`);`;
 
     this._assertion = assertion;
     void this._view?.webview.postMessage({
@@ -249,6 +267,13 @@ function htmlForWebview(vscode: vscodeTypes.VSCode, extensionUri: vscodeTypes.Ur
         #argInput {
           margin-top: 4px;
         }
+        .radio-label {
+          font-size: 13px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
         .step-num {
           display: inline-flex;
           align-items: center;
@@ -270,30 +295,38 @@ function htmlForWebview(vscode: vscodeTypes.VSCode, extensionUri: vscodeTypes.Ur
         <div class="hbox">
           <span class="step-num">1</span>
           <button id="pickBtn" title="Pick element" class="icon-btn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path d="M18 42h-7.5c-3 0-4.5-1.5-4.5-4.5v-27C6 7.5 7.5 6 10.5 6h27C42 6 42 10.404 42 10.5V18h-3V9H9v30h9v3Zm27-15-9 6 9 9-3 3-9-9-6 9-6-24 24 6Z"/></svg></button>
-          <label>Pick Locator</label>
+          <label>Pick Element</label>
         </div>
+        <label style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Locator</label>
         <input id="locator" placeholder="Pick an element or type a locator" aria-label="Locator">
+        <label style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:6px;">ARIA Snapshot</label>
+        <textarea id="ariaPreview" placeholder="Pick an element to see its ARIA snapshot" aria-label="ARIA Snapshot" rows="4" readonly style="resize:vertical;font-family:var(--vscode-editor-font-family,monospace);font-size:12px;opacity:0.8;"></textarea>
       </div>
       <div class="section">
         <div class="hbox">
           <span class="step-num">2</span>
-          <label>Select Matcher</label>
+          <label>Assert using</label>
         </div>
-        <div class="hbox" style="gap:6px;margin-top:2px;">
-          <select id="assertType" style="min-width:200px;"></select>
+        <div class="hbox" style="gap:8px;margin-top:2px;">
+          <label class="radio-label"><input type="radio" name="assertMode" value="locator" checked> Locator</label>
+          <label class="radio-label"><input type="radio" name="assertMode" value="snapshot"> Snapshot</label>
           <label style="flex:none;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:3px;margin-left:8px;">
-            not
             <input id="negateCheckbox" type="checkbox">
+            Not
           </label>
         </div>
-        <input id="argInput" placeholder="Expected value" aria-label="Expected value" style="display:none;">
+        <div id="locatorMode" style="margin-top:4px;">
+          <select id="assertType"></select>
+          <input id="argInput" placeholder="Expected value" aria-label="Expected value" style="display:none;">
+        </div>
+        <div id="snapshotMode" style="display:none;"></div>
       </div>
       <div class="section">
         <div class="hbox">
           <span class="step-num">3</span>
           <label>Verify</label>
         </div>
-        <input id="assertion" placeholder="Assertion will appear here" aria-label="Assertion">
+        <textarea id="assertion" placeholder="Assertion will appear here" aria-label="Assertion" rows="2" style="resize:vertical;font-family:var(--vscode-editor-font-family,monospace);font-size:12px;"></textarea>
         <div class="hbox" style="margin-top:4px;align-items:center;">
           <button id="verifyBtn" class="inline-btn">Verify</button>
           <span id="verifyResult" style="font-size:13px;margin-left:6px;display:none;"></span>

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.23.0
+
+**2026-04-05**
+
+### Changes
+
+- Upgrade `@playwright-repl/playwright-crx` to 1.21.1 (Playwright 1.59.1)
+- Full Playwright assertion matchers (`toBeVisible()`, `toHaveText()`, `toMatchAriaSnapshot()`, etc.) now available in the extension
+- Replace deprecated `_snapshotForAI()` with `ariaSnapshot({ mode: 'ai' })`
+- Replace removed `_generateLocatorString()` with `locator.normalize()` in element picker
+
 ## 0.22.0
 
 **2026-04-03**

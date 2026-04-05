@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.23.0 — Upgrade to Playwright 1.59.1
+
+**2026-04-05**
+
+### Breaking Changes
+
+- **Playwright 1.59.1**: Upgraded `@playwright-repl/playwright-crx` from 0.15.3 to 1.21.1, bringing the underlying Playwright engine from 1.53 to 1.59.1.
+
+### Changes
+
+- **Snapshot API**: Replaced deprecated `_snapshotForAI()` with `ariaSnapshot({ mode: 'ai' })`. ([#573](https://github.com/stevez/playwright-repl/pull/573))
+- **Element picker**: Replaced removed `_generateLocatorString()` with `locator.normalize()` for resolving Playwright locators from picked elements.
+- **Expect matchers**: Full Playwright assertion matchers (`toBeVisible()`, `toHaveText()`, `toContainText()`, `toMatchAriaSnapshot()`, etc.) now available in the extension service worker.
+- **Completions**: Regenerated `pw-completions.json` from Playwright 1.59.1 type declarations (374 completions).
+- **Build**: Updated `extract-completions.mjs` to resolve `playwright-core` types via pnpm workspace path.
+
 ## v0.22.0 — serviceWorker.evaluate() Architecture
 
 **2026-04-03**

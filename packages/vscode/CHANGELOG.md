@@ -7,6 +7,7 @@
 ### Fixes
 
 - Fix locator generation for `<p>` and long-text elements — use `getByText()` with substring instead of generic CSS selector
+- Retarget element picker to nearest interactive ancestor (link, button, etc.) — matches Playwright codegen behavior
 
 ## 0.23.0
 

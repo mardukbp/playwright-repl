@@ -12,6 +12,7 @@ import {
   replVersion, parseInput, ALIASES, ALL_COMMANDS, buildCompletionItems, c, prettyJson,
   BridgeServer, COMMANDS, CATEGORIES, JS_CATEGORIES, refToLocator,
   filterResponse as filterResponseBase, resolveArgs,
+  isLocalCommand, handleLocalCommand,
 } from '@playwright-repl/core';
 import type { EngineOpts, ParsedArgs, EngineResult, CompletionItem } from '@playwright-repl/core';
 import { Engine } from './engine.js';
@@ -773,6 +774,19 @@ async function runSingleBridgeFile(
     log(`${indent}${c.dim}[${commandsRun}/${commands.length}]${c.reset} ${cmd}`);
 
     const startTime = performance.now();
+
+    // Local commands — handle in Node.js (e.g. video needs real filesystem)
+    const localResult = await handleLocalCommand(cmd, (srv as any).context);
+    if (localResult) {
+      const elapsed = (performance.now() - startTime).toFixed(0);
+      log(localResult.isError ? `${c.red}${localResult.text}${c.reset}` : localResult.text);
+      log(`${c.dim}(${elapsed}ms)${c.reset}`);
+      if (localResult.isError) {
+        return { passed: false, commandsRun, errorMsg: `failed at [${commandsRun}/${commands.length}]: ${cmd}` };
+      }
+      continue;
+    }
+
     const result = await srv.run(cmd);
     const elapsed = (performance.now() - startTime).toFixed(0);
     displayBridgeResult(result, silent);
@@ -931,6 +945,13 @@ async function startBridgeLoop(opts: ReplOpts, srv: BridgeServer): Promise<void>
         return;
       }
       log(`js: ${locator.js}\npw: ${locator.pw}`);
+      return;
+    }
+
+    // ── Local commands (video, etc. — need Node.js filesystem) ─────
+    const localResult = await handleLocalCommand(command, (srv as any).context);
+    if (localResult) {
+      log(localResult.isError ? `${c.red}${localResult.text}${c.reset}` : localResult.text);
       return;
     }
 

@@ -1,7 +1,10 @@
-// ─── CLI Bridge (offscreen document) ──────────────────────────────────────────
-// Maintains a WebSocket connection to the MCP/CLI bridge server.
-// Relays commands to the service worker for execution via chrome.runtime messaging.
+// ─── CLI Bridge (offscreen document) ���─────────────────��───────────────────────
+// Maintains WebSocket connections to:
+// 1. Bridge server (command relay) — port from chrome.storage
+// 2. CDP relay server (CDP protocol relay) — port from chrome.storage
 // This runs independently of the side panel — MCP works without the panel open.
+
+// ─── Bridge WebSocket (command relay) ──────────��────────────────────────────
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -58,12 +61,12 @@ function connect(port: number) {
     }
 }
 
-// Ask the SW for the bridge port (offscreen docs can't access chrome.storage)
 chrome.runtime.sendMessage({ type: 'get-bridge-port' }).then((port: number) => {
     connect(port || 9876);
 });
 
-// Listen for port changes and recording/picker events from the SW
+// ─── Message routing from background SW ─────────────────────────────────────
+
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'bridge-port-changed') {
         if (reconnectTimer) clearTimeout(reconnectTimer);

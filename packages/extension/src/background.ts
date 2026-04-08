@@ -128,14 +128,28 @@ async function ensureCrxApp(): Promise<CrxApplication> {
   return crxApp;
 }
 
+function isAttachableUrl(url: string | undefined): boolean {
+  if (!url) return true; // no URL info — let attachToTab decide
+  if (url.startsWith('chrome://')) return false;
+  if (url.startsWith('https://chromewebstore.google.com')) return false;
+  if (url.startsWith('chrome-extension://') && !url.startsWith(`chrome-extension://${chrome.runtime.id}/`)) return false;
+  return true;
+}
+
 async function getActiveTabId(): Promise<number | null> {
   if (activeTabId) return activeTabId;
   // Try focused window first
   const [focused] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (focused?.id) return focused.id;
+  if (focused?.id && isAttachableUrl(focused.url)) return focused.id;
   // Fall back to any active tab (handles Chrome not being the focused app)
   const [active] = await chrome.tabs.query({ active: true });
-  return active?.id ?? null;
+  if (active?.id && isAttachableUrl(active.url)) return active.id;
+  // All active tabs are restricted — find any regular tab
+  const tabs = await chrome.tabs.query({});
+  for (const t of tabs) {
+    if (t.id && isAttachableUrl(t.url)) return t.id;
+  }
+  return null;
 }
 
 // ─── Tab Attachment ───────────────────────────────────────────────────────────
@@ -144,9 +158,11 @@ async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; 
   try {
     const tab = await chrome.tabs.get(tabId);
     const ownOrigin = `chrome-extension://${chrome.runtime.id}/`;
-    if (tab.url?.startsWith('chrome://') ||
-        (tab.url?.startsWith('chrome-extension://') && !tab.url?.startsWith(ownOrigin))) {
-      return { ok: false, error: 'Cannot attach to internal pages. Navigate to a regular webpage first.' };
+    const url = tab.url ?? '';
+    if (url.startsWith('chrome://') ||
+        (url.startsWith('chrome-extension://') && !url.startsWith(ownOrigin)) ||
+        url.startsWith('https://chromewebstore.google.com')) {
+      return { ok: false, error: 'Cannot attach to this page — Chrome restricts extension access. Navigate to a regular webpage first.' };
     }
 
     const app = await ensureCrxApp();
@@ -645,9 +661,10 @@ async function handleBridgeCommand(msg: {
 
   let result = await executeCommandPayload(msg);
 
-  // Stale page recovery: if the command failed because the page/tab was closed,
+  // Stale page recovery: if the command failed because the page/tab was closed
+  // or Chrome forcibly detached the extension (e.g. navigated to chromewebstore.google.com),
   // clear state and retry once with a fresh attach.
-  if (result.isError && result.text.includes('TargetClosedError')) {
+  if (result.isError && (result.text.includes('TargetClosedError') || result.text.includes('Target closed') || result.text.includes('detached'))) {
     currentPage = null;
     activeTabId = null;
     const tabId = await getActiveTabId();

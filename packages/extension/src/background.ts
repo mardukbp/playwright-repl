@@ -145,23 +145,25 @@ async function attachToTab(tabId: number): Promise<{ ok: boolean; url?: string; 
       return { ok: false, error: 'Cannot attach to internal pages. Navigate to a regular webpage first.' };
     }
 
-    // Already attached to this tab — reuse the existing page.
-    if (activeTabId === tabId && currentPage) {
-      return { ok: true, url: currentPage.url() };
-    }
+    const app = await ensureCrxApp();
 
-    let app = await ensureCrxApp();
+    // Only detach when re-attaching to the SAME tab (SPA navigation / stale frames).
+    // playwright-crx supports multiple attached pages, so switching tabs is safe.
+    if (activeTabId === tabId) {
+      await app.detach(activeTabId).catch(e => console.debug('[pw-repl] detach before reattach:', e));
+      currentPage = null;
+      activeTabId = null;
+    }
 
     try {
       currentPage = await app.attach(tabId);
     } catch {
-      // "Frame has been detached" — stale frame tree from previous attach.
-      // app.detach() doesn't fully clean up transport state (_tabToTarget maps),
-      // so close the app entirely and get a fresh instance.
-      await app.close().catch(() => {});
-      app = await ensureCrxApp();
+      // Attach failed (stale frames, etc.) — detach all stale sessions and retry.
+      // The _doDetach fix in playwright-crx handles broken pages gracefully.
+      await app.detachAll().catch(e => console.debug('[pw-repl] detachAll before retry:', e));
       currentPage = await app.attach(tabId);
     }
+
     activeTabId = tabId;
     Object.assign(globalThis, { page: currentPage, context: app.context(), crxApp: app, activeTabId, expect: patchedExpect });
 

@@ -17,7 +17,6 @@ vi.mock('@playwright-repl/playwright-crx', () => {
   mockCrxApp = {
     attach: vi.fn().mockResolvedValue(mockPage),
     detach: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
     on: vi.fn(),
     context: vi.fn().mockReturnValue(mockContext),
   };
@@ -60,7 +59,6 @@ describe("background.ts message handlers", () => {
       attach: vi.fn().mockResolvedValue(mockPage),
       detach: vi.fn().mockResolvedValue(undefined),
       detachAll: vi.fn().mockResolvedValue(undefined),
-      close: vi.fn().mockResolvedValue(undefined),
       on: vi.fn(),
       context: vi.fn().mockReturnValue(mockContext),
       recorder: {
@@ -177,13 +175,12 @@ describe("background.ts message handlers", () => {
     expect(result.error).toContain('CDP failed');
   });
 
-  it("attach recovers via app.close() on transient error", async () => {
+  it("attach recovers via detachAll on transient error", async () => {
     mockCrxApp.attach
       .mockRejectedValueOnce(new Error('Frame has been detached'))
       .mockResolvedValueOnce(mockPage);
-    mockCrxApp.close = vi.fn().mockResolvedValue(undefined);
     const result = await sendMessage({ type: 'attach', tabId: 42 });
-    expect(mockCrxApp.close).toHaveBeenCalled();
+    expect(mockCrxApp.detachAll).toHaveBeenCalled();
     expect(result).toEqual({ ok: true, url: 'https://example.com' });
   });
 
@@ -196,12 +193,10 @@ describe("background.ts message handlers", () => {
     expect(mockCrxApp.detach).not.toHaveBeenCalled();
   });
 
-  it("attach reuses existing page when re-attaching to the same tab", async () => {
+  it("attach detaches when re-attaching to the same tab", async () => {
     await sendMessage({ type: 'attach', tabId: 42 });
-    const result = await sendMessage({ type: 'attach', tabId: 42 });
-    // Should reuse existing page, not detach/reattach
-    expect(mockCrxApp.detach).not.toHaveBeenCalled();
-    expect(result).toEqual({ ok: true, url: 'https://example.com' });
+    await sendMessage({ type: 'attach', tabId: 42 });
+    expect(mockCrxApp.detach).toHaveBeenCalledWith(42);
   });
 
   // ─── record-start / record-stop ───────────────────────────────────────────
@@ -251,7 +246,7 @@ describe("background.ts message handlers", () => {
 
   // ─── attach: Frame detached retry ─────────────────────────────────────────
 
-  it("attach retries on 'Frame has been detached' error via app.close()", async () => {
+  it("attach retries on 'Frame has been detached' error via detachAll", async () => {
     const retryPage = { url: vi.fn().mockReturnValue('https://example.com'), on: vi.fn() };
     let callCount = 0;
     mockCrxApp.attach.mockImplementation(() => {
@@ -259,11 +254,10 @@ describe("background.ts message handlers", () => {
       if (callCount === 1) return Promise.reject(new Error('Frame has been detached'));
       return Promise.resolve(retryPage);
     });
-    mockCrxApp.close = vi.fn().mockResolvedValue(undefined);
 
     const result = await sendMessage({ type: 'attach', tabId: 42 });
     expect(result.ok).toBe(true);
-    expect(mockCrxApp.close).toHaveBeenCalled();
+    expect(mockCrxApp.detachAll).toHaveBeenCalled();
     expect(mockCrxApp.attach).toHaveBeenCalledTimes(2);
   });
 

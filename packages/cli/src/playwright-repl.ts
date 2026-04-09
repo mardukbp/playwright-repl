@@ -16,7 +16,7 @@ import { minimist } from '@playwright-repl/core';
 import { startRepl } from './repl.js';
 
 const args = minimist(process.argv.slice(2), {
-  boolean: ['headed', 'headless', 'persistent', 'help', 'step', 'silent', 'spawn', 'bridge', 'include-snapshot', 'verbose'],
+  boolean: ['headed', 'headless', 'persistent', 'help', 'step', 'silent', 'spawn', 'bridge', 'engine', 'include-snapshot', 'verbose'],
   string: ['session', 'browser', 'profile', 'config', 'replay', 'record', 'connect', 'port', 'cdp-port', 'bridge-port'],
   alias: { s: 'session', h: 'help', b: 'browser', q: 'silent' },
   default: { session: 'default' },
@@ -42,6 +42,7 @@ Options:
   --connect [port]       Connect to existing Chrome via CDP (default: 9222)
   --bridge               Connect to extension via WebSocket bridge (no CDP required)
   --bridge-port <port>   WebSocket bridge port (default: 9876)
+  --engine               Use standalone engine (no extension, keyword commands only)
   --cdp-port <number>    Chrome CDP port (default: 9222)
   --include-snapshot     Include snapshot in update command responses
   --verbose              Show raw response headers (### Result, ### Snapshot, etc.)
@@ -103,6 +104,7 @@ startRepl({
   step: args.step as boolean,
   silent: args.silent as boolean,
   bridge: args.bridge as boolean,
+  engine: args.engine as boolean,
   bridgePort: args['bridge-port'] ? parseInt(args['bridge-port'] as string, 10) : undefined,
   includeSnapshot: args['include-snapshot'] as boolean,
   verbose: args.verbose as boolean,

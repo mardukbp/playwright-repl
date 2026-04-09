@@ -28,6 +28,7 @@ export interface ReplOpts extends EngineOpts {
   silent?: boolean;
   bridge?: boolean;
   bridgePort?: number;
+  engine?: boolean;
   includeSnapshot?: boolean;
   verbose?: boolean;
 }
@@ -961,7 +962,7 @@ export async function startRepl(opts: ReplOpts = {}): Promise<void> {
 
   // ─── Standalone mode (new: serviceWorker.evaluate) ─────────────
 
-  if (!opts.bridge && !opts.connect) {
+  if (!opts.bridge && !opts.connect && !opts.engine) {
     const { EvaluateConnection, findExtensionPath } = await import('@playwright-repl/core');
     const extPath = process.env.VITEST ? null : findExtensionPath(import.meta.url);
     if (extPath) {

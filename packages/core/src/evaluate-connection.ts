@@ -23,7 +23,9 @@ export interface EvaluateResult {
 
 /**
  * Find the Dramaturg Chrome extension dist path.
- * Checks monorepo first (dev), then bundled (npm install).
+ * Resolution order:
+ *   1. Monorepo: packages/extension/dist (dev)
+ *   2. npm package: @playwright-repl/browser-extension/dist
  * @param from Path to resolve from (e.g. import.meta.url or __filename)
  */
 export function findExtensionPath(from?: string): string | null {
@@ -31,15 +33,14 @@ export function findExtensionPath(from?: string): string | null {
     const req = from ? createRequire(from) : createRequire(import.meta.url);
     const coreMain = req.resolve('@playwright-repl/core');
     const coreDir = coreMain.replace(/[\\/]dist[\\/].*$/, '');
-    // Monorepo: packages/extension/dist
+    // 1. Monorepo: packages/extension/dist
     const monorepoExt = path.resolve(coreDir, '../extension/dist');
     if (fs.existsSync(path.join(monorepoExt, 'manifest.json'))) return monorepoExt;
-    // Bundled (npm): chrome-extension/ next to the caller
-    if (from) {
-      const callerDir = path.dirname(from.startsWith('file://') ? new URL(from).pathname : from);
-      const bundledExt = path.resolve(callerDir, 'chrome-extension');
-      if (fs.existsSync(path.join(bundledExt, 'manifest.json'))) return bundledExt;
-    }
+    // 2. npm package: @playwright-repl/browser-extension
+    try {
+      const manifestPath = req.resolve('@playwright-repl/browser-extension/dist/manifest.json');
+      return path.dirname(manifestPath);
+    } catch {}
   } catch {}
   return null;
 }

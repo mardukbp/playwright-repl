@@ -51,7 +51,7 @@ console.log(`Copied ${copied} files to node_modules/`);
 
 // ─── 4. Copy static assets ──────────────────────────────────────────────
 const statics = [
-  'chrome-extension', 'images', 'media', 'l10n',
+  'images', 'media', 'l10n',
   'README.md', 'CHANGELOG.md', 'LICENSE', 'NOTICE',
   ...fs.readdirSync(VSCODE_PKG).filter(f => f.startsWith('package.nls')),
 ];

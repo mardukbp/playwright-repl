@@ -45,13 +45,10 @@ export class BrowserManager {
       ? createRequire(path.join(opts.workspaceFolder, 'package.json'))
       : _extRequire;
 
-    // 1. Find Chrome extension
-    const bundledExt = path.resolve(path.dirname(__filename), '..', 'chrome-extension');
-    const coreMain = _extRequire.resolve('@playwright-repl/core');
-    const coreDir = coreMain.replace(/[\\/]dist[\\/].*$/, '');
-    const monorepoExt = path.resolve(coreDir, '../extension/dist');
-    const extPath = fs.existsSync(path.join(bundledExt, 'manifest.json')) ? bundledExt : monorepoExt;
-    if (!fs.existsSync(path.join(extPath, 'manifest.json')))
+    // 1. Find Chrome extension (bundled → npm package → monorepo)
+    const { findExtensionPath } = await import('@playwright-repl/core');
+    const extPath = findExtensionPath(__filename);
+    if (!extPath)
       throw new Error(`Chrome extension not found. Run "pnpm run build" first.`);
     this._log.appendLine(`Extension: ${extPath}`);
 

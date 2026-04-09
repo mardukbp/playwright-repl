@@ -1,4 +1,3 @@
 dist/
-chrome-extension/
 *.vsix
 .vsce-build/

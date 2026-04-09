@@ -26,6 +26,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@playwright-repl/browser-extension':
+        specifier: workspace:*
+        version: link:../extension
       '@playwright-repl/core':
         specifier: workspace:*
         version: link:../core
@@ -42,6 +45,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@playwright-repl/browser-extension':
+        specifier: workspace:*
+        version: link:../extension
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.1
@@ -179,6 +185,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.10.0
         version: 1.27.1(zod@3.25.76)
+      '@playwright-repl/browser-extension':
+        specifier: workspace:*
+        version: link:../extension
       '@playwright-repl/core':
         specifier: workspace:*
         version: link:../core
@@ -194,6 +203,9 @@ importers:
 
   packages/runner:
     dependencies:
+      '@playwright-repl/browser-extension':
+        specifier: workspace:*
+        version: link:../extension
       '@playwright-repl/core':
         specifier: workspace:*
         version: link:../core
@@ -219,6 +231,9 @@ importers:
 
   packages/vscode:
     dependencies:
+      '@playwright-repl/browser-extension':
+        specifier: workspace:*
+        version: link:../extension
       '@playwright-repl/core':
         specifier: workspace:*
         version: link:../core

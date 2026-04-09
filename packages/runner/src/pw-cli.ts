@@ -14,6 +14,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { findExtensionPath } from '@playwright-repl/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const _require = createRequire(__filename);
@@ -26,12 +27,8 @@ try {
 } catch {
   pwCliPath = _require.resolve('@playwright/test/cli');
 }
-// Chrome extension: monorepo first (dev, has latest changes), then bundled (npm)
-const monorepoExt = path.resolve(path.dirname(__filename), '../../extension/dist');
-const bundledExt = path.resolve(path.dirname(__filename), 'chrome-extension');
-const extPath = fs.existsSync(path.join(monorepoExt, 'manifest.json'))
-  ? monorepoExt
-  : bundledExt;
+// Chrome extension: resolved via findExtensionPath (monorepo → npm package → bundled)
+const extPath = findExtensionPath(import.meta.url) ?? '';
 
 const args = process.argv.slice(2);
 const subcommand = args[0];

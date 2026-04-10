@@ -60,12 +60,21 @@ jobs:
         run: pnpm exec playwright test
         working-directory: packages/extension
 
+      - name: Merge extension coverage
+        run: pnpm run coverage:merge
+        working-directory: packages/extension
+
+      - name: Build VS Code extension for tests
+        run: node build-test.mjs
+        working-directory: packages/vscode
+
+      - name: Run VS Code extension mock tests
+        run: pnpm exec playwright test --config tests/playwright.config.ts --project default
+        working-directory: packages/vscode
+        timeout-minutes: 10
+
       # VS Code E2E tests disabled — flaky on CI, works locally
       # - name: Run VS Code extension E2E tests
       #   run: ${{ runner.os == 'Linux' && 'xvfb-run' || '' }} pnpm exec playwright test --config e2e/playwright.config.ts
       #   working-directory: packages/vscode
       #   timeout-minutes: 5
-
-      - name: Merge extension coverage
-        run: pnpm run coverage:merge
-        working-directory: packages/extension

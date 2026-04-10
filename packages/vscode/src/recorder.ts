@@ -10,7 +10,7 @@
  */
 
 import * as vscode from 'vscode';
-import type { BrowserManager } from './browser.js';
+import type { IBrowserManager } from './browser.js';
 
 // ─── Cursor Context Detection ──────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ interface CursorContext {
  * If inside, returns the indentation and insert position.
  * If outside, returns inside=false so we generate a template.
  */
-function detectCursorContext(editor: vscode.TextEditor): CursorContext {
+export function detectCursorContext(editor: vscode.TextEditor): CursorContext {
   const doc = editor.document;
   const cursorLine = editor.selection.active.line;
 
@@ -112,14 +112,14 @@ function replaceLastInsert(editor: vscode.TextEditor, text: string, indent: numb
 // ─── Recorder Class ────────────────────────────────────────────────────────
 
 export class Recorder {
-  private _browserManager: BrowserManager;
+  private _browserManager: IBrowserManager;
   private _outputChannel: vscode.OutputChannel;
   private _recording = false;
   private _statusBarItem: vscode.StatusBarItem;
   private _indentation = 4;
   private _editor: vscode.TextEditor | undefined;
 
-  constructor(browserManager: BrowserManager, outputChannel: vscode.OutputChannel) {
+  constructor(browserManager: IBrowserManager, outputChannel: vscode.OutputChannel) {
     this._browserManager = browserManager;
     this._outputChannel = outputChannel;
 

@@ -1,21 +1,115 @@
 /**
- * REPL webview script — handles input, output rendering, and command history.
+ * REPL webview script — handles input, output rendering, command history,
+ * and autocomplete dropdown for .pw commands.
  */
 
 import { vscode } from './common';
 
 const output = document.getElementById('output')!;
 const input = document.getElementById('command-input') as HTMLTextAreaElement;
+const dropdown = document.getElementById('autocomplete-dropdown')!;
 
 let commandHistory: string[] = [];
 let commandHistoryIndex = -1;
 let savedInput = '';
 
+// ─── Autocomplete state ──────────────────────────────────────────────────
+
+interface CompletionItem { cmd: string; desc: string; }
+
+let completionItems: CompletionItem[] = [];
+let filteredItems: CompletionItem[] = [];
+let selectedIndex = 0;
+let dropdownVisible = false;
+
+function showDropdown(items: CompletionItem[]) {
+  filteredItems = items;
+  selectedIndex = 0;
+  dropdown.innerHTML = '';
+  for (let i = 0; i < items.length; i++) {
+    const el = document.createElement('div');
+    el.className = 'ac-item' + (i === 0 ? ' ac-selected' : '');
+    const prefix = input.value.slice(0, input.selectionStart);
+    const matchLen = prefix.length;
+    const cmd = items[i].cmd;
+    const highlighted = `<b>${escapeHtml(cmd.slice(0, matchLen))}</b>${escapeHtml(cmd.slice(matchLen))}`;
+    el.innerHTML = `<span class="ac-cmd">${highlighted}</span><span class="ac-desc">${escapeHtml(items[i].desc)}</span>`;
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // prevent blur
+      acceptCompletion(i);
+    });
+    dropdown.appendChild(el);
+  }
+  dropdown.classList.add('visible');
+  dropdownVisible = true;
+}
+
+function hideDropdown() {
+  dropdown.classList.remove('visible');
+  dropdown.innerHTML = '';
+  dropdownVisible = false;
+  filteredItems = [];
+}
+
+function updateSelection(newIndex: number) {
+  const items = dropdown.querySelectorAll('.ac-item');
+  if (items[selectedIndex]) items[selectedIndex].classList.remove('ac-selected');
+  selectedIndex = Math.max(0, Math.min(newIndex, filteredItems.length - 1));
+  if (items[selectedIndex]) {
+    items[selectedIndex].classList.add('ac-selected');
+    items[selectedIndex].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function acceptCompletion(index?: number) {
+  const idx = index ?? selectedIndex;
+  if (idx < 0 || idx >= filteredItems.length) return;
+  const item = filteredItems[idx];
+  // Replace entire input with the completed command + trailing space
+  input.value = item.cmd + ' ';
+  input.selectionStart = input.selectionEnd = input.value.length;
+  hideDropdown();
+  input.focus();
+}
+
+function updateAutocomplete() {
+  const text = input.value.slice(0, input.selectionStart);
+  if (text.length === 0 || input.value.includes('\n')) {
+    hideDropdown();
+    return;
+  }
+  // Match against full input — same logic as CLI ghost completion:
+  // when input contains a space, only match commands that also contain a space
+  const candidates = text.includes(' ')
+    ? completionItems.filter(item => item.cmd.includes(' '))
+    : completionItems;
+  const matches = candidates.filter(item => item.cmd.startsWith(text) && item.cmd !== text);
+  if (matches.length === 0) {
+    hideDropdown();
+    return;
+  }
+  // Limit to 12 items to keep dropdown manageable
+  showDropdown(matches.slice(0, 12));
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ─── Input handling ───────────────────────────────────────────────────────
 
 input.addEventListener('keydown', (e: KeyboardEvent) => {
+  // Autocomplete takes priority when visible
+  if (dropdownVisible) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); updateSelection(selectedIndex + 1); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); updateSelection(selectedIndex - 1); return; }
+    if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); acceptCompletion(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); hideDropdown(); return; }
+  }
+
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
+    hideDropdown();
     const command = input.value.trim();
     if (!command) return;
     appendLine(command, 'command');
@@ -43,6 +137,15 @@ input.addEventListener('keydown', (e: KeyboardEvent) => {
       input.value = savedInput;
     }
   }
+});
+
+input.addEventListener('input', () => {
+  updateAutocomplete();
+});
+
+input.addEventListener('blur', () => {
+  // Delay to allow mousedown on dropdown items
+  setTimeout(hideDropdown, 150);
 });
 
 function resetHeight() {
@@ -82,6 +185,8 @@ window.addEventListener('message', event => {
     if (!params.processing) input.focus();
   } else if (method === 'history') {
     commandHistory = params.history;
+  } else if (method === 'completionItems') {
+    completionItems = params.items;
   }
 });
 

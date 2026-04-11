@@ -26,6 +26,7 @@ export interface ReplOpts extends EngineOpts {
   record?: string;
   step?: boolean;
   silent?: boolean;
+  command?: string;
   bridge?: boolean;
   bridgePort?: number;
   engine?: boolean;
@@ -973,6 +974,12 @@ export async function startRepl(opts: ReplOpts = {}): Promise<void> {
         // Default to headed for evaluate mode (interactive REPL with extension)
         await conn.start(extPath, { headed: opts.headed ?? true, chromium });
         log(`${c.green}✓${c.reset} Browser ready (with extension)`);
+        if (opts.command) {
+          const result = await conn.run(opts.command);
+          process.stdout.write((result.text ?? '') + '\n');
+          await conn.close();
+          process.exit(result.isError ? 1 : 0);
+        }
         log(`${c.dim}Type .help for commands, JavaScript supported${c.reset}\n`);
         if (opts.replay && opts.replay.length > 0) {
           await runBridgeReplayMode(opts, conn as any);
@@ -992,8 +999,15 @@ export async function startRepl(opts: ReplOpts = {}): Promise<void> {
   if (opts.bridge) {
     const port = opts.bridgePort ?? 9876;
     const srv = new BridgeServer();
-    await srv.start(port);
+    await srv.start(port, { silent: !!opts.command });
     log(`Bridge server listening on ws://localhost:${port}`);
+    if (opts.command) {
+      await srv.waitForConnection(30000);
+      const result = await srv.run(opts.command);
+      process.stdout.write((result.text ?? '') + '\n');
+      srv.close();
+      process.exit(result.isError ? 1 : 0);
+    }
     if (opts.replay && opts.replay.length > 0) {
       await runBridgeReplayMode(opts, srv);
     } else {
@@ -1014,6 +1028,20 @@ export async function startRepl(opts: ReplOpts = {}): Promise<void> {
   } catch (err: unknown) {
     console.error(`${c.red}✗${c.reset} Failed to start: ${(err as Error).message}`);
     process.exit(1);
+  }
+
+  if (opts.command) {
+    const parsed = parseInput(opts.command);
+    if (!parsed) {
+      process.stderr.write('Invalid command\n');
+      conn.close();
+      process.exit(1);
+      return; // unreachable, but satisfies TS control-flow
+    }
+    const result = await conn.run(parsed);
+    process.stdout.write((result.text ?? '') + '\n');
+    conn.close();
+    process.exit(result.isError ? 1 : 0);
   }
 
   // ─── Session + readline ──────────────────────────────────────────

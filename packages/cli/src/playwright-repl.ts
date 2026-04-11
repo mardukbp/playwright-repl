@@ -5,6 +5,7 @@
  *
  * Usage:
  *   playwright-repl [options]
+ *   playwright-repl --bridge --command "snapshot"
  *   playwright-repl --replay session.pw
  *   playwright-repl --replay session.pw --step
  *   playwright-repl --replay file1.pw file2.pw
@@ -17,7 +18,7 @@ import { startRepl } from './repl.js';
 
 const args = minimist(process.argv.slice(2), {
   boolean: ['headed', 'headless', 'persistent', 'help', 'step', 'silent', 'spawn', 'bridge', 'engine', 'include-snapshot', 'verbose'],
-  string: ['session', 'browser', 'profile', 'config', 'replay', 'record', 'connect', 'port', 'cdp-port', 'bridge-port'],
+  string: ['session', 'browser', 'profile', 'config', 'replay', 'record', 'connect', 'port', 'cdp-port', 'bridge-port', 'command'],
   alias: { s: 'session', h: 'help', b: 'browser', q: 'silent' },
   default: { session: 'default' },
 });
@@ -46,6 +47,7 @@ Options:
   --cdp-port <number>    Chrome CDP port (default: 9222)
   --include-snapshot     Include snapshot in update command responses
   --verbose              Show raw response headers (### Result, ### Snapshot, etc.)
+  --command <cmd>        Run a single command, print output, and exit
   --config <file>        Path to config file
   --replay <files...>   Replay .pw file(s) or folder(s)
   --record <file>        Start REPL with recording to file
@@ -76,6 +78,7 @@ Examples:
   playwright-repl --replay login.pw --step  # step through replay
   playwright-repl --replay tests/         # replay all .pw files in folder
   playwright-repl --replay a.pw b.pw      # replay multiple files
+  playwright-repl --bridge --command "snapshot"  # run one command and exit
   echo "open https://example.com" | playwright-repl  # pipe commands
 `);
   process.exit(0);
@@ -87,6 +90,8 @@ if (args.replay) {
   replayFiles.push(args.replay as string);
   for (const a of args._ as string[]) replayFiles.push(String(a));
 }
+
+const commandArg = args.command as string | undefined;
 
 startRepl({
   session: args.session as string,
@@ -100,9 +105,10 @@ startRepl({
   cdpPort: args['cdp-port'] ? parseInt(args['cdp-port'] as string, 10) : undefined,
   config: args.config as string,
   replay: replayFiles.length > 0 ? replayFiles : undefined,
+  command: commandArg,
+  silent: (args.silent as boolean) || !!commandArg,
   record: args.record as string,
   step: args.step as boolean,
-  silent: args.silent as boolean,
   bridge: args.bridge as boolean,
   engine: args.engine as boolean,
   bridgePort: args['bridge-port'] ? parseInt(args['bridge-port'] as string, 10) : undefined,

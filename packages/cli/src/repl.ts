@@ -719,6 +719,7 @@ function displayBridgeResult(result: EngineResult, silent: boolean): void {
       console.log(result.isError ? `${c.red}${result.text}${c.reset}` : result.text);
     }
   }
+
 }
 
 // ─── Bridge replay mode ──────────────────────────────────────────────────────

@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.25.0
+
+**2026-04-11**
+
+### Features
+
+- **VS Code REPL autocomplete**: Command dropdown filters `.pw` commands as you type, with keyboard navigation and highlighted prefix. ([#691](https://github.com/stevez/playwright-repl/pull/691))
+- **VS Code REPL object tree**: JSON objects/arrays render as expandable `<details>/<summary>` trees with colored primitives (matching debug console style). ([#694](https://github.com/stevez/playwright-repl/pull/694))
+- **VS Code REPL toolbar**: Native clear, filter (All/Commands/Output/Errors/Info), and search icons in the panel title bar. Search with highlight, prev/next navigation, Escape to close. ([#695](https://github.com/stevez/playwright-repl/pull/695))
+- **CLI `--http` mode**: Start an HTTP server (port 9223) alongside the REPL for fast external command access. Works with standalone and bridge modes. ([#696](https://github.com/stevez/playwright-repl/pull/696))
+- **MCP HTTP server**: MCP server automatically starts HTTP server on port 9223 for `pw-cli` / `--command --http` access. Request logging to `~/.playwright-repl/http.log`. ([#698](https://github.com/stevez/playwright-repl/pull/698))
+- **`pw-cli` shorthand**: New binary — `pw-cli "snapshot"` sends commands via HTTP to a running session. No flags needed. ([#699](https://github.com/stevez/playwright-repl/pull/699))
+- **CLI `--command` flag**: Run a single command and exit — works in standalone, bridge, and HTTP modes. ([#670](https://github.com/stevez/playwright-repl/issues/670))
+- **AI skill (SKILL.md)**: Teach AI agents (Claude Code, Cursor) to use `pw-cli` via Bash — no MCP needed. Full command reference and workflow examples. ([#702](https://github.com/stevez/playwright-repl/pull/702))
+- **Lifecycle logging**: MCP server and extension logging across startup, tool calls, and connection events. ([#668](https://github.com/stevez/playwright-repl/issues/668))
+
+### Fixes
+
+- **Bridge mode single test skip**: Fix index-based result mapping in Test Explorer — use `findResultByName()` so clicking a single test runs correctly. ([#693](https://github.com/stevez/playwright-repl/pull/693))
+- **Offscreen bridge**: Skip offscreen bridge for development installs, improve reconnection. ([#667](https://github.com/stevez/playwright-repl/issues/667))
+- **Windows test workers**: Fix repl-view mock tests failing on Windows with multiple workers. ([#684](https://github.com/stevez/playwright-repl/issues/684))
+
+### Refactors
+
+- **VS Code extension**: Extract `IBrowserManager` interface, `WebviewBase` abstract class, and `BrowserController` from Extension god class. ([#671](https://github.com/stevez/playwright-repl/issues/671), [#676](https://github.com/stevez/playwright-repl/issues/676), [#678](https://github.com/stevez/playwright-repl/issues/678))
+- **VS Code test infrastructure**: Upstream mock test framework with `WebviewPagePool`, server-side V8 coverage collection, and headless picker/recorder tests. ([#669](https://github.com/stevez/playwright-repl/issues/669), [#681](https://github.com/stevez/playwright-repl/issues/681), [#687](https://github.com/stevez/playwright-repl/issues/687), [#689](https://github.com/stevez/playwright-repl/pull/689))
+
 ## v0.24.1
 
 **2026-04-09**

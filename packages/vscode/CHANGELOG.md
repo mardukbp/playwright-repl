@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.25.0
+
+**2026-04-11**
+
+### Features
+
+- REPL autocomplete dropdown — filters `.pw` commands with keyboard navigation
+- REPL object tree — JSON results render as expandable trees with colored primitives
+- REPL toolbar — clear, filter (All/Commands/Output/Errors/Info), and search in panel title bar
+- Search with highlight, prev/next, Escape to close
+
+### Fixes
+
+- Bridge mode: clicking a single test in Test Explorer no longer marks it as skipped
+- Windows: repl-view mock tests fixed for multiple workers
+
+### Refactors
+
+- Extract `IBrowserManager` interface, `WebviewBase`, `BrowserController` from Extension
+- Upstream mock test infrastructure with WebviewPagePool and server-side coverage
+- Headless picker/recorder tests using mock BrowserManager
+
 ## 0.24.1
 
 **2026-04-09**

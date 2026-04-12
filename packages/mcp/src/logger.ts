@@ -12,6 +12,7 @@ import { homedir } from 'node:os';
 
 const LOG_DIR = join(homedir(), '.playwright-repl');
 const LOG_FILE = join(LOG_DIR, 'mcp.log');
+const HTTP_LOG_FILE = join(LOG_DIR, 'http.log');
 
 /** Maximum characters kept from a result text in the log. */
 const MAX_RESULT_LENGTH = 200;
@@ -76,4 +77,11 @@ export function logError(context: string, err: unknown): void {
     write('error', `${context}: ${msg}`);
 }
 
-export { LOG_FILE };
+export function logHttp(message: string): void {
+    if (!enabled) return;
+    try {
+        appendFileSync(HTTP_LOG_FILE, `${ts()} ${message}\n`);
+    } catch {}
+}
+
+export { LOG_FILE, HTTP_LOG_FILE };

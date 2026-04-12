@@ -8,7 +8,7 @@ import pkg from '../package.json' with { type: 'json' };
 import { createBridgeRunner } from './bridge.js';
 import { createEvaluateRunner } from './evaluate.js';
 import { createStandaloneRunner } from './standalone.js';
-import { logStartup, logEvent, logToolCall, logToolResult, logError, LOG_FILE } from './logger.js';
+import { logStartup, logEvent, logToolCall, logToolResult, logError, logHttp, LOG_FILE } from './logger.js';
 import type { Runner } from './types.js';
 // ─── Process exit handlers — log why the process dies ───────────────────────
 
@@ -76,26 +76,41 @@ function startHttpServer(port: number, r: Runner) {
             return;
         }
         if (req.method === 'POST' && req.url === '/run') {
+            const t0 = Date.now();
+            let command = '';
             try {
                 const body = await readBody(req);
-                const { command } = JSON.parse(body);
+                ({ command } = JSON.parse(body));
+                logHttp(`→ ${command}`);
                 const result = await r.runCommand(command);
+                const ms = Date.now() - t0;
+                logHttp(`${result.isError ? '✗' : '✓'} ${command} (${ms}ms)`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
             } catch (e: unknown) {
+                logHttp(`✗ ${command} — ${(e as Error).message}`);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ text: (e as Error).message, isError: true }));
             }
             return;
         }
         if (req.method === 'POST' && req.url === '/run-script') {
+            const t0 = Date.now();
+            let language = 'pw';
             try {
                 const body = await readBody(req);
-                const { script, language } = JSON.parse(body);
-                const result = await r.runScript(script, language || 'pw');
+                const parsed = JSON.parse(body);
+                const script = parsed.script as string;
+                language = parsed.language || 'pw';
+                const preview = script.split('\n')[0].slice(0, 60);
+                logHttp(`→ [${language}] ${preview}${script.length > preview.length ? '…' : ''}`);
+                const result = await r.runScript(script, language as 'pw' | 'javascript');
+                const ms = Date.now() - t0;
+                logHttp(`${result.isError ? '✗' : '✓'} [${language}] (${ms}ms)`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
             } catch (e: unknown) {
+                logHttp(`✗ [${language}] — ${(e as Error).message}`);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ text: (e as Error).message, isError: true }));
             }

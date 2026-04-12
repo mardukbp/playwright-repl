@@ -32,16 +32,22 @@ playwright-repl includes an AI skill file that teaches agents (Claude Code, Curs
 ### Claude Code
 
 ```bash
-# Copy the skill to your project
-mkdir -p .claude/skills
-cp node_modules/playwright-repl/skills/SKILL.md .claude/skills/playwright-repl.md
+# Project-level (this project only)
+mkdir -p .claude/skills/playwright-repl
+cp node_modules/playwright-repl/skills/SKILL.md .claude/skills/playwright-repl/SKILL.md
+
+# Or global (all projects)
+mkdir -p ~/.claude/skills/playwright-repl
+cp node_modules/playwright-repl/skills/SKILL.md ~/.claude/skills/playwright-repl/SKILL.md
 ```
+
+Then invoke with `/playwright-repl` or let Claude auto-detect it from the skill description.
 
 ### Cursor
 
 ```bash
-mkdir -p .cursor/skills
-cp node_modules/playwright-repl/skills/SKILL.md .cursor/skills/playwright-repl.md
+mkdir -p .cursor/skills/playwright-repl
+cp node_modules/playwright-repl/skills/SKILL.md .cursor/skills/playwright-repl/SKILL.md
 ```
 
 The skill defines `allowed-tools: Bash(pw-cli:*)` so the agent can run browser commands directly.

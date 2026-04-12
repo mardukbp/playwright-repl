@@ -99,7 +99,10 @@ pw-cli "eval document.title"
 pw-cli "eval el => el.textContent e5"
 pw-cli "console"
 pw-cli "network"
+# Convert snapshot ref to Playwright locator
 pw-cli "locator e5"
+# → getByRole('button', { name: 'Submit' })
+# Under the hood: (await page.locator('aria-ref=e5').normalize()).toString()
 ```
 
 ### Assertions

@@ -25,7 +25,7 @@ import { SettingsModel } from './settingsModel';
 import { SettingsView } from './settingsView';
 import { RunHooks, TestModel, TestModelCollection, TestProject } from './testModel';
 import { configError, disabledProjectName as disabledProject, TestTree } from './testTree';
-import { NodeJSNotFoundError, getPlaywrightInfo, stripAnsi, stripBabelFrame, uriToPath } from './utils';
+import { NodeJSNotFoundError, buildBridgeErrorContext, writeBridgeErrorContext, getPlaywrightInfo, stripAnsi, stripBabelFrame, uriToPath } from './utils';
 import * as vscodeTypes from './vscodeTypes';
 import { WorkspaceChange, WorkspaceObserver } from './workspaceObserver';
 import { registerTerminalLinkProvider } from './terminalLinkProvider';
@@ -951,7 +951,17 @@ export class Extension implements RunHooks {
         const testItem = testItems[i];
 
         if (result.isError) {
-          testRun.failed(testItem, [{ message: result.text || 'Bridge execution failed' }], 0);
+          const wsFolder = this._vscode.workspace.getWorkspaceFolder(testItem.uri!)?.uri.fsPath;
+          const errorText = result.text || 'Bridge execution failed';
+          const pageSnapshot = await this._tryCaptureSnapshot(bridge);
+          const fallbackLine = testItem.range ? testItem.range.start.line + 1 : undefined;
+          const mdContext = buildBridgeErrorContext(fullNames[i], filePath, errorText, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: true, fallbackLine });
+          const panelContext = buildBridgeErrorContext(fullNames[i], filePath, errorText, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: false, fallbackLine });
+          if (wsFolder) writeBridgeErrorContext(fullNames[i], wsFolder, mdContext);
+          const testMessage = this._testMessageFromText(errorText, panelContext);
+          if (testItem.uri && testItem.range)
+            testMessage.location = new this._vscode.Location(testItem.uri, testItem.range.start);
+          testRun.failed(testItem, [testMessage], 0);
           continue;
         }
 
@@ -961,8 +971,19 @@ export class Extension implements RunHooks {
           testRun.passed(testItem, testResult.duration);
         else if (testResult.status === 'skipped')
           testRun.skipped(testItem);
-        else
-          testRun.failed(testItem, testResult.errors.map((e: { message: string }) => ({ message: e.message })), testResult.duration);
+        else {
+          const errorMsg = testResult.errors.map((e: { message: string }) => e.message).join('\n');
+          const wsFolder = this._vscode.workspace.getWorkspaceFolder(testItem.uri!)?.uri.fsPath;
+          const pageSnapshot = await this._tryCaptureSnapshot(bridge);
+          const fallbackLine = testItem.range ? testItem.range.start.line + 1 : undefined;
+          const mdContext = buildBridgeErrorContext(fullNames[i], filePath, errorMsg, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: true, fallbackLine });
+          const panelContext = buildBridgeErrorContext(fullNames[i], filePath, errorMsg, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: false, fallbackLine });
+          if (wsFolder) writeBridgeErrorContext(fullNames[i], wsFolder, mdContext);
+          const testMessage = this._testMessageFromText(errorMsg, panelContext);
+          if (testItem.uri && testItem.range)
+            testMessage.location = new this._vscode.Location(testItem.uri, testItem.range.start);
+          testRun.failed(testItem, [testMessage], testResult.duration);
+        }
       }
     }
 
@@ -994,6 +1015,20 @@ export class Extension implements RunHooks {
       }
     };
     return testListener;
+  }
+
+  /**
+   * Best-effort: capture a page snapshot from the bridge for use in error-context.
+   * Returns undefined if the snapshot fails (e.g. page is closed).
+   */
+  private async _tryCaptureSnapshot(bridge: { run: (cmd: string, opts?: { timeout?: number }) => Promise<{ text?: string; isError?: boolean }> }): Promise<string | undefined> {
+    try {
+      const result = await bridge.run('snapshot', { timeout: 3000 });
+      if (result.isError || !result.text) return undefined;
+      return result.text;
+    } catch {
+      return undefined;
+    }
   }
 
   private _extractAIContext(result: reporterTypes.TestResult): string | undefined {

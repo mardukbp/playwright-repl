@@ -182,6 +182,24 @@ describe("highlight", () => {
     const { jsExpr } = direct("highlight --clear");
     expect(jsExpr).toContain('clearHighlight');
   });
+
+  it("preserves quotes inside :has-text() CSS pseudo-class", () => {
+    const { jsExpr } = direct('highlight div:has-text("RFCP")');
+    expect(jsExpr).toContain('highlightBySelector');
+    expect(jsExpr).toContain('has-text(\\"RFCP\\")');
+  });
+
+  it("preserves single quotes inside :has-text()", () => {
+    const { jsExpr } = direct("highlight div:has-text('RFCP')");
+    expect(jsExpr).toContain('highlightBySelector');
+    expect(jsExpr).toContain("has-text('RFCP')");
+  });
+
+  it("preserves spaces inside :has-text()", () => {
+    const { jsExpr } = direct('highlight div:has-text("Hello World")');
+    expect(jsExpr).toContain('highlightBySelector');
+    expect(jsExpr).toContain('has-text(\\"Hello World\\")');
+  });
 });
 
 describe("press", () => {

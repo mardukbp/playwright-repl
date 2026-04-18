@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.1
+
+**2026-04-18**
+
+### Build
+
+- Fix publish dependency resolution (stale peer dep from 0.26.0)
+
 ## 0.26.0
 
 **2026-04-17**

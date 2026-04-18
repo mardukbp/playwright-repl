@@ -73,7 +73,7 @@ console.log(`\n=== Copied to ${tmpDir} ===`);
 
 // ─── 4. npm install (clean, no symlinks) ──────────────────────────────────
 console.log('\n=== Installing dependencies ===');
-run('npm install --production', { cwd: tmpDir });
+run('npm install --omit=dev', { cwd: tmpDir });
 
 // ─── 5. Package / Publish ─────────────────────────────────────────────────
 if (publish) {

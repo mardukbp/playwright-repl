@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.26.1
+
+**2026-04-18**
+
+### Build
+
+- Fix extension `package.json` version not bumped during 0.26.0 release, causing stale peer dep in published `@playwright-repl/core`.
+- Fix `publish.mjs` — replace deprecated `--production` with `--omit=dev`.
+
 ## v0.26.0
 
 **2026-04-17**

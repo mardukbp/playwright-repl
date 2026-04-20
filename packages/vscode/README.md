@@ -14,6 +14,7 @@ This extension is built upon Microsoft's official [Playwright Test for VS Code](
 - Assert Builder — build and verify 13 Playwright assertion matchers interactively
 - Recorder — capture browser interactions as test commands
 - Bridge execution — browser-only tests bypass the test runner for near-instant feedback
+- AI Assist — `@playwright-repl` in Copilot Chat with browser tools for fixing, polishing, and reviewing tests
 
 **Everything you already know still works:**
 - Test Explorer, Debugger, and Trace Viewer — unchanged, same familiar interface
@@ -79,6 +80,35 @@ Record browser interactions as Playwright JavaScript. Click elements, fill forms
 
 <img src="https://raw.githubusercontent.com/stevez/playwright-repl/main/packages/vscode/images/recording.gif" width="75%">
 
+### AI Assist
+
+`@playwright-repl` is a Copilot Chat participant that helps you fix, polish, and review Playwright tests. It has access to browser tools and can run tests, lint code, and inspect the page.
+
+**Slash commands:**
+
+| Command | Description |
+|---------|-------------|
+| `@playwright-repl /fix` | Fix failing test — runs it, diagnoses errors, fixes code, verifies it passes |
+| `@playwright-repl /improve` | Polish locators, assertions, and readability following Playwright best practices |
+| `@playwright-repl /verify` | Run test and lint, report results without modifying code |
+| `@playwright-repl /review` | Review for anti-patterns, flaky patterns, and missing assertions |
+
+**Free-form prompts** — type any instruction after `@playwright-repl`:
+```
+@playwright-repl run lint on this file and show me the results
+@playwright-repl explain what this test does
+@playwright-repl add assertions for all visible headings
+```
+
+**Tools available to the AI:**
+- `snapshot` — page accessibility tree
+- `screenshot` — visual page capture
+- `run_command` — execute REPL commands (click, fill, goto, etc.)
+- `run_test` — run a specific test via Playwright test runner
+- `lint` — eslint-plugin-playwright rules
+
+Works with any model in Copilot Chat (Claude, GPT-4o, etc.). Works headless (without browser) for `run_test` and `lint`. Requires GitHub Copilot extension (free tier).
+
 ### Browser REPL
 
 The [Dramaturg](https://chromewebstore.google.com/detail/dramaturg/ppbkmncnmjkfppilnmplpokdfagobipa) Chrome extension adds an interactive REPL directly in the browser — available as a side panel or a DevTools tab.
@@ -103,12 +133,13 @@ REPL, Test Explorer, Recorder, and Picker all share the same headed browser via 
 
 ## Test Authoring Workflow
 
-**Record → Pick Locator → Assert → Run Test**
+**Record → Pick Locator → Assert → Run Test → AI Assist**
 
 1. **Record** interactions to generate test steps
 2. **Pick** elements to get locators
 3. **Assert** expected values against the live page
 4. **Run** tests through the Test Explorer
+5. **AI Assist** — use `@playwright-repl /fix` to fix failures, `/improve` to polish code
 
 ## Commands
 
@@ -136,6 +167,7 @@ REPL, Test Explorer, Recorder, and Picker all share the same headed browser via 
 - Node.js 18+
 - `@playwright/test` 1.59+ in your project
 - `esbuild` in your project for bridge execution (`npm install -D esbuild`) — without it, falls back to `esbuild-wasm` (bundled), which is slower but requires no installation
+- GitHub Copilot extension (free tier) — for AI Assist features (`@playwright-repl` in Copilot Chat)
 
 ## Panels
 

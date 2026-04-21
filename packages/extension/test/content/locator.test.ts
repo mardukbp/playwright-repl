@@ -247,10 +247,11 @@ describe('locator', () => {
             expect(getLabel(input)).toBe('Name');
         });
 
-        it('detects informal label from preceding table cell', () => {
+        it('does not return informal label from preceding table cell (#768)', () => {
             document.body.innerHTML = '<table><tr><td>Benutzerkennung:*</td><td><input type="text"></td></tr></table>';
             const input = document.querySelector('input') as HTMLInputElement;
-            expect(getLabel(input)).toBe('Benutzerkennung:*');
+            // Informal labels are not in the accessibility tree — getLabel returns empty
+            expect(getLabel(input)).toBe('');
         });
 
         it('returns empty when preceding cell has no text', () => {
@@ -992,17 +993,22 @@ describe('locator', () => {
             const cmds = buildCommands('fill', input, { value: 'user' });
             // Should NOT produce `fill textbox "user"` (ambiguous)
             expect(cmds!.pw).not.toMatch(/^fill textbox /);
-            // Should use CSS selector fallback
+            // Should use CSS selector fallback with css prefix
+            expect(cmds!.pw).toContain('css');
             expect(cmds!.pw).toContain('"user"');
             expect(cmds!.js).toContain(".fill('user')");
         });
 
-        it('uses label from preceding table cell for fill', () => {
+        it('uses CSS fallback for fill in legacy table form (#768)', () => {
             document.body.innerHTML = '<table><tr><td>Username:</td><td><input type="text"></td></tr></table>';
             const input = document.querySelector('input')!;
             const cmds = buildCommands('fill', input, { value: 'admin' });
-            expect(cmds!.pw).toContain('"Username:"');
+            // Informal labels (adjacent cell) can't be resolved by getByRole or getByLabel.
+            // Should use CSS selector which always works at runtime.
+            expect(cmds!.pw).toContain('css');
             expect(cmds!.pw).toContain('"admin"');
+            expect(cmds!.pw).not.toContain('textbox');
+            expect(cmds!.pw).not.toContain('Username:');
         });
 
         it('adds --exact for text-based click locator', () => {

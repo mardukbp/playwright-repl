@@ -101,12 +101,8 @@ export function getLabel(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelect
         const text = (clone.textContent || '').trim();
         if (text) return text;
     }
-    // Informal association: preceding table cell or sibling text (common in legacy forms)
-    const cell = el.closest('td, th');
-    if (cell?.previousElementSibling) {
-        const text = (cell.previousElementSibling.textContent || '').trim();
-        if (text && text.length <= 80) return text;
-    }
+    // Informal associations (e.g. preceding table cell) are intentionally excluded —
+    // they produce names that Playwright's getByRole/getByLabel can't resolve (#768).
     return '';
 }
 
@@ -522,11 +518,15 @@ export function buildCommands(action: string, el: Element, opts?: {
             const val = opts?.value ?? '';
             // Bare role without name (e.g. "textbox") makes fill ambiguous:
             // `fill textbox "val"` parses as fill(role=textbox, name="val", value="")
-            const fillLoc = !isCssFallback && /^[a-z]+$/.test(pwArgs)
-                ? q(buildCssSelector(el))
-                : pwArgs;
+            // Fall back to CSS selector which always works at runtime.
+            let fillLoc = pwArgs;
+            let fillPrefix = cssPrefix;
+            if (!isCssFallback && /^[a-z]+$/.test(pwArgs)) {
+                fillLoc = q(buildCssSelector(el));
+                fillPrefix = 'css ';
+            }
             return {
-                pw: `fill ${cssPrefix}${fillLoc} ${q(val)}${inFlag}`,
+                pw: `fill ${fillPrefix}${fillLoc} ${q(val)}${inFlag}`,
                 js: `await ${jsLoc}.fill(${escapeString(val)});`,
             };
         }
@@ -546,11 +546,14 @@ export function buildCommands(action: string, el: Element, opts?: {
         case 'select': {
             const optVal = opts?.option ?? '';
             // Same bare-role guard as fill
-            const selLoc = !isCssFallback && /^[a-z]+$/.test(pwArgs)
-                ? q(buildCssSelector(el))
-                : pwArgs;
+            let selLoc = pwArgs;
+            let selPrefix = cssPrefix;
+            if (!isCssFallback && /^[a-z]+$/.test(pwArgs)) {
+                selLoc = q(buildCssSelector(el));
+                selPrefix = 'css ';
+            }
             return {
-                pw: `select ${cssPrefix}${selLoc} ${q(optVal)}${inFlag}`,
+                pw: `select ${selPrefix}${selLoc} ${q(optVal)}${inFlag}`,
                 js: `await ${jsLoc}.selectOption(${escapeString(optVal)});`,
             };
         }

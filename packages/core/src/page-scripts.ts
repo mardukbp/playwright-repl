@@ -41,18 +41,20 @@ export function buildRunCodeScoped(fn, inText, targetText, ...args) {
   const tgtSer = JSON.stringify(targetText);
   return { _: ['run-code', `async (page) => {
   let __scope = page;
-  for (const __r of ['region','group','article','listitem','dialog','form']) {
+  for (const __r of ['group','article','listitem','region','dialog','form']) {
     const __c = page.getByRole(__r).filter({ hasText: ${inSer} });
-    if (await __c.getByText(${tgtSer}, { exact: true }).count() > 0) { __scope = __c; break; }
+    const __n = await __c.count();
+    if (__n > 0) { __scope = __c.first(); break; }
   }
   if (__scope === page) {
     try {
       let __anchor = page.getByText(${inSer}, { exact: true });
       if (await __anchor.count() === 0) __anchor = page.getByText(${inSer});
-      const __sel = await __anchor.first().evaluate((el, tgt) => {
+      const __sel = await __anchor.first().evaluate((el) => {
+        const S = new Set(['FIELDSET','SECTION','ARTICLE','DETAILS','DIALOG','FORM']);
         let a = el.parentElement;
         while (a && a !== document.body) {
-          if (a.textContent.includes(tgt)) {
+          if (S.has(a.tagName) || a.hasAttribute('role')) {
             const id = '__pw_in_' + Math.random().toString(36).slice(2);
             a.setAttribute('data-pw-in', id);
             return '[data-pw-in="' + id + '"]';
@@ -60,7 +62,7 @@ export function buildRunCodeScoped(fn, inText, targetText, ...args) {
           a = a.parentElement;
         }
         return null;
-      }, ${tgtSer});
+      });
       if (__sel) __scope = page.locator(__sel);
     } catch {}
   }
@@ -193,6 +195,28 @@ export async function fillByText(page, text, value, nth, exact?) {
   if (!exact) {
     if (await loc.count() === 0) loc = page.getByPlaceholder(text);
     if (await loc.count() === 0) loc = page.getByRole('textbox', { name: text });
+    // Informal label fallback: find text, walk up DOM to locate a nearby input
+    if (await loc.count() === 0) {
+      const sel = await page.getByText(text).first().evaluate((el) => {
+        let a = el.closest('tr') || el.parentElement;
+        while (a && a !== document.body) {
+          const inp = a.querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, [contenteditable="true"]');
+          if (inp) {
+            const id = '__pw_fill_' + Math.random().toString(36).slice(2);
+            inp.setAttribute('data-pw-fill', id);
+            return '[data-pw-fill="' + id + '"]';
+          }
+          a = a.parentElement;
+        }
+        return null;
+      });
+      if (sel) {
+        loc = page.locator(sel);
+        await loc.fill(value);
+        await page.evaluate(() => document.querySelectorAll('[data-pw-fill]').forEach(el => el.removeAttribute('data-pw-fill'))).catch(() => {});
+        return;
+      }
+    }
   }
   if (nth !== undefined) loc = loc.filter({ visible: true }).nth(nth);
   await loc.fill(value);

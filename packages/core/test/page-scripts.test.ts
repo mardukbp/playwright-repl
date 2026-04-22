@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { describe, it, expect, vi } from 'vitest';
 import {
-  buildRunCode, verifyText, verifyElement, verifyValue, verifyList,
+  buildRunCode, buildRunCodeScoped, verifyText, verifyElement, verifyValue, verifyList,
   verifyTitle, verifyUrl, verifyNoText, verifyNoElement,
   actionByText, fillByText, selectByText,
   checkByText, uncheckByText,
@@ -95,6 +95,60 @@ function mockPage(locatorCount = 1) {
     locator: vi.fn().mockReturnValue(loc),
   };
 }
+
+// ─── buildRunCodeScoped ────────────────────────────────────────────────────
+
+describe('buildRunCodeScoped', () => {
+  it('scopes to narrowest role element containing --in text (#734)', async () => {
+    // Simulate: a <form> wraps two <fieldset> (group) sections.
+    // "E-Scooter" fieldset does NOT contain "Bis 45 km/h".
+    // "Moped" fieldset DOES contain "Bis 45 km/h".
+    // The old code required both texts in scope, so it matched the broad <form>.
+    // The fix scopes to the narrowest element with the --in text (the fieldset),
+    // and the action naturally fails if the target isn't there.
+
+    const targetText = 'Bis 45 km/h';
+    const scopedTo = [];
+
+    // narrow fieldset for "E-Scooter" — does NOT contain target
+    const escooterFieldset = {
+      _name: 'escooter-fieldset',
+      getByText: vi.fn().mockReturnValue({ count: vi.fn().mockResolvedValue(0) }),
+      getByRole: vi.fn().mockReturnValue({ count: vi.fn().mockResolvedValue(0) }),
+      getByPlaceholder: vi.fn().mockReturnValue({ count: vi.fn().mockResolvedValue(0) }),
+    };
+
+    const page = {
+      getByRole: vi.fn().mockImplementation((role) => {
+        if (role === 'group') {
+          return {
+            filter: vi.fn().mockReturnValue({
+              count: vi.fn().mockResolvedValue(1),
+              first: vi.fn().mockReturnValue(escooterFieldset),
+            }),
+          };
+        }
+        // Other roles: no matches
+        return {
+          filter: vi.fn().mockReturnValue({
+            count: vi.fn().mockResolvedValue(0),
+          }),
+        };
+      }),
+      evaluate: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const dummy = async function dummyAction(scope, text, action) {
+      scopedTo.push(scope._name || 'page');
+    };
+    const result = buildRunCodeScoped(dummy, 'E-Scooter', targetText, targetText, 'click');
+    const fn = eval(`(${result._[1]})`);
+    await fn(page);
+
+    // Should scope to the narrow E-Scooter fieldset, NOT the broad form
+    expect(scopedTo).toEqual(['escooter-fieldset']);
+  });
+});
 
 // ─── Verify functions ───────────────────────────────────────────────────────
 
@@ -265,6 +319,33 @@ describe('fillByText', () => {
     const page = mockPage(1);
     await fillByText(page, 'Email', 'test@example.com');
     expect(page._loc.fill).toHaveBeenCalledWith('test@example.com');
+  });
+
+  it('fills via informal label fallback when no formal label (#768)', async () => {
+    // Simulate: <tr><td>Benutzerkennung:*</td><td><input></td></tr>
+    // No <label for> association, so getByLabel/getByPlaceholder/getByRole all return count=0.
+    const filledWith = [];
+    const inputLoc = {
+      fill: vi.fn().mockImplementation((v) => { filledWith.push(v); }),
+    };
+    const noMatch = { count: vi.fn().mockResolvedValue(0) };
+    const page = {
+      getByLabel: vi.fn().mockReturnValue(noMatch),
+      getByPlaceholder: vi.fn().mockReturnValue(noMatch),
+      getByRole: vi.fn().mockReturnValue(noMatch),
+      getByText: vi.fn().mockReturnValue({
+        first: vi.fn().mockReturnValue({
+          evaluate: vi.fn().mockResolvedValue('[data-pw-fill="test123"]'),
+        }),
+      }),
+      locator: vi.fn().mockReturnValue(inputLoc),
+      evaluate: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await fillByText(page, 'Benutzerkennung:*', 'user');
+    expect(page.getByText).toHaveBeenCalledWith('Benutzerkennung:*');
+    expect(page.locator).toHaveBeenCalledWith('[data-pw-fill="test123"]');
+    expect(filledWith).toEqual(['user']);
   });
 });
 

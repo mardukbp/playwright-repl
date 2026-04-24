@@ -207,6 +207,7 @@ export async function selectByText(page, text, value, nth?, exact?) {
     }
   }
   if (nth !== undefined) loc = loc.filter({ visible: true }).nth(nth);
+  else if (await loc.count() > 1) loc = loc.filter({ visible: true });
   await loc.selectOption(value);
 }
 
@@ -259,6 +260,7 @@ export async function actionByRole(page, role, name, action, nth, inRole, inText
     }
   }
   if (nth !== undefined) loc = loc.nth(nth);
+  else if (await loc.count() > 1) loc = loc.filter({ visible: true });
   await loc[action]();
 }
 
@@ -275,6 +277,7 @@ export async function fillByRole(page, role, name, value, nth, inRole, inText) {
     }
   }
   if (nth !== undefined) loc = loc.nth(nth);
+  else if (await loc.count() > 1) loc = loc.filter({ visible: true });
   await loc.fill(value);
 }
 
@@ -291,6 +294,7 @@ export async function selectByRole(page, role, name, value, nth, inRole, inText)
     }
   }
   if (nth !== undefined) loc = loc.nth(nth);
+  else if (await loc.count() > 1) loc = loc.filter({ visible: true });
   await loc.selectOption(value);
 }
 

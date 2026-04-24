@@ -247,6 +247,16 @@ describe('locator', () => {
             expect(getLabel(input)).toBe('Name');
         });
 
+        it('includes aria-label from child elements in label text (#802)', () => {
+            document.body.innerHTML = `
+                <label for="hersteller">Hersteller Ihres Fahrzeuges
+                    <span><a aria-label="Information anzeigen" role="button"></a></span>
+                </label>
+                <select id="hersteller"><option>A</option></select>`;
+            const select = document.querySelector('select') as HTMLSelectElement;
+            expect(getLabel(select)).toBe('Hersteller Ihres Fahrzeuges Information anzeigen');
+        });
+
         it('does not return informal label from preceding table cell (#768)', () => {
             document.body.innerHTML = '<table><tr><td>Benutzerkennung:*</td><td><input type="text"></td></tr></table>';
             const input = document.querySelector('input') as HTMLInputElement;
@@ -1050,6 +1060,20 @@ describe('locator', () => {
             // Second select: should use informal label from table cell
             const cmds2 = buildCommands('click', selects[1]);
             expect(cmds2!.pw).toBe('click "Select an option (table)"');
+        });
+
+        it('select in same cell as label uses within-cell sibling, not previous cell (#800)', () => {
+            document.body.innerHTML = `<table><tr>
+                <td><span>Beantragte Währung</span><br><span>Euro</span></td>
+                <td><span>Mittelgeber*</span><br>
+                    <select><option value="AA">AA</option><option value="BB">BB</option></select>
+                </td>
+            </tr></table>`;
+            const select = document.querySelector('select')!;
+            const cmds = buildCommands('click', select);
+            expect(cmds!.pw).toBe('click "Mittelgeber*"');
+            const selCmds = buildCommands('select', select, { option: 'AA' });
+            expect(selCmds!.pw).toBe('select "Mittelgeber*" "AA"');
         });
 
         it('adds --exact for text-based click locator', () => {

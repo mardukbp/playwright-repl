@@ -8,6 +8,8 @@ import { BottomPane } from './components/BottomPane'
 import DebugBar from './components/DebugBar';
 import { onConsoleEvent } from '@/lib/sw-debugger';
 import { loadSettings } from './lib/settings';
+import { saveSessionState, loadSessionState } from './lib/session-state';
+import { getCommandHistory, addCommand } from './lib/command-history';
 import { SerializedValue } from './components/Console/types'
 import { formatInlineValues } from './lib/inline-values'
 
@@ -33,11 +35,40 @@ function App() {
     return () => onConsoleEvent(null);
   }, [dispatch]);
 
+  // Load editor mode from settings, then restore session state
   useEffect(() => {
-    loadSettings().then(s => {
-      dispatch({ type: 'SET_EDITOR_MODE', mode: s.languageMode });
+    loadSettings().then(s => dispatch({ type: 'SET_EDITOR_MODE', mode: s.languageMode }));
+    loadSessionState().then(session => {
+      if (!session) return;
+      if (session.editorContent) dispatch({ type: 'EDIT_EDITOR_CONTENT', content: session.editorContent });
+      if (session.editorMode) dispatch({ type: 'SET_EDITOR_MODE', mode: session.editorMode });
+      if (session.breakPoints.length) dispatch({ type: 'SET_BREAKPOINTS', breakPoints: new Set(session.breakPoints) });
+      dispatch({ type: 'SET_BOTTOM_TAB', tab: session.bottomTab });
+      if (session.editorPaneHeight && editorPaneRef.current) {
+        editorPaneRef.current.style.flex = `0 0 ${session.editorPaneHeight}px`;
+      }
+      if (session.cursorPos) {
+        setTimeout(() => editorRef.current?.setCursorPos(session.cursorPos), 50);
+      }
+      for (const cmd of session.commandHistory) addCommand(cmd);
     });
   }, []);
+
+  // Save session state on every meaningful change (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveSessionState({
+        editorContent: state.editorContent,
+        editorMode: state.editorMode,
+        breakPoints: [...state.breakPoints],
+        bottomTab: state.bottomTab,
+        cursorPos: editorRef.current?.getCursorPos() ?? 0,
+        editorPaneHeight: editorPaneRef.current?.offsetHeight ?? null,
+        commandHistory: getCommandHistory(),
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [state.editorContent, state.editorMode, state.breakPoints, state.bottomTab]);
 
   async function doAttach(tabId: number) {
     dispatch({ type: 'ATTACH_START' });

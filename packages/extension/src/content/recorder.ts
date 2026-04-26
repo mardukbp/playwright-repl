@@ -120,7 +120,7 @@ export function flushPendingFill() {
 // ─── Event handlers (capture phase, transparent) ──────────────────────────
 
 export function onClickCapture(e: MouseEvent) {
-    const target = e.target as Element;
+    let target = e.target as Element;
     if (!target) return;
 
     // Media elements (video/audio) are typically covered by player overlays —

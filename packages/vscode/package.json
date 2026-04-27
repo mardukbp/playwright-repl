@@ -319,7 +319,6 @@
     "publish:vsce": "node publish.mjs publish"
   },
   "dependencies": {
-    "@playwright-repl/browser-extension": "workspace:*",
     "@playwright-repl/core": "workspace:*",
     "@playwright-repl/runner": "workspace:*",
     "eslint": "^10.0.2",

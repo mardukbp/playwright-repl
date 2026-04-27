@@ -234,9 +234,6 @@ importers:
 
   packages/vscode:
     dependencies:
-      '@playwright-repl/browser-extension':
-        specifier: workspace:*
-        version: link:../extension
       '@playwright-repl/core':
         specifier: workspace:*
         version: link:../core

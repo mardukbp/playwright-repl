@@ -882,6 +882,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ ok: true });
     return false;
   }
+  if (msg.type === 'cdp-relay-connect') {
+    // Forward relay URL to offscreen document
+    ensureOffscreen().then(() => {
+      chrome.runtime.sendMessage({ type: 'cdp-relay-connect', relayUrl: msg.relayUrl });
+    });
+    sendResponse({ ok: true });
+    return false;
+  }
   if (msg.type === 'get-bridge-port') {
     chrome.storage.local.get(['bridgePort']).then(s => sendResponse((s.bridgePort as number) || 9876));
     return true;
@@ -922,7 +930,73 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  // ── CDP Relay: attach debugger to tab ──
+  if (msg.type === 'cdp-attach-tab') {
+    (async () => {
+      const tabId = await getActiveTabId();
+      if (!tabId) { sendResponse({ error: 'No active tab' }); return; }
+      const debuggee: chrome.debugger.Debuggee = { tabId };
+      // Detach first if already attached (from previous session)
+      await new Promise<void>(r => chrome.debugger.detach(debuggee, () => { void chrome.runtime.lastError; r(); }));
+      await new Promise<void>((resolve, reject) => {
+        chrome.debugger.attach(debuggee, '1.3', () => {
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+          else resolve();
+        });
+      });
+      globalThis.__cdpRelayTabId = tabId;
+      console.debug('[cdp-relay] attached to tab:', tabId);
+      // Get REAL CDP target info (not chrome.tabs — Playwright needs correct frame IDs)
+      const result = await new Promise<unknown>((resolve, reject) => {
+        chrome.debugger.sendCommand(debuggee, 'Target.getTargetInfo', {}, (r) => {
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+          else resolve(r);
+        });
+      }) as { targetInfo?: unknown };
+      sendResponse({ result: { targetInfo: result?.targetInfo } });
+    })().catch(e => sendResponse({ error: String(e) }));
+    return true;
+  }
+
+  // ── CDP Relay: forward CDP command via chrome.debugger ──
+  if (msg.type === 'cdp-command') {
+    const { method, params, sessionId } = msg as { type: string; method: string; params?: unknown; sessionId?: string };
+    const debuggerSession = { tabId: globalThis.__cdpRelayTabId!, sessionId } as chrome.debugger.Debuggee;
+    chrome.debugger.sendCommand(debuggerSession, method, params as Record<string, unknown>, (result) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ error: chrome.runtime.lastError.message });
+      } else {
+        sendResponse({ result });
+      }
+    });
+    return true;
+  }
+
   return false;
+});
+
+// ─── CDP Relay: forward debugger events to offscreen ────────────────────────
+// Only forward events when relay is active (i.e. a tab has been attached via cdp-attach-tab).
+// Without this guard, every chrome.debugger event from playwright-crx would be intercepted.
+
+chrome.debugger.onEvent.addListener((source, method, params) => {
+  if (!globalThis.__cdpRelayTabId) return;
+  if (source.tabId !== globalThis.__cdpRelayTabId) return;
+  chrome.runtime.sendMessage({
+    type: 'cdp-event',
+    method,
+    params,
+    sessionId: (source as { sessionId?: string }).sessionId,
+    tabId: source.tabId,
+  }).catch(() => { /* offscreen may not be ready */ });
+});
+
+chrome.debugger.onDetach.addListener((source) => {
+  if (!globalThis.__cdpRelayTabId) return;
+  chrome.runtime.sendMessage({
+    type: 'cdp-detach',
+    tabId: source.tabId,
+  }).catch(() => {});
 });
 
 // ─── Download filename override ─────────────────────────────────────────────

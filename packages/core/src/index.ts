@@ -16,12 +16,15 @@ export {
 export type { EngineOpts, EngineResult, ParsedArgs } from './types.js';
 export { filterResponse } from './filter.js';
 export { BridgeServer } from './bridge-server.js';
+export { CDPRelayServer } from './cdp-relay-server.js';
 export { EvaluateConnection, findExtensionPath } from './evaluate-connection.js';
 export type { CompletionItem } from './completion-data.js';
 export type { CommandInfo } from './resolve.js';
 export { parseSnapshot, refToLocator, allRefLocators } from './snapshot-parser.js';
 export type { SnapshotNode, LocatorResult, RefLocatorEntry } from './snapshot-parser.js';
 export { isLocalCommand, handleLocalCommand, isVideoCommand, handleVideoCommand, isTracingCommand, handleTracingCommand } from './local-commands.js';
+export { resolveCommand } from './resolve-command.js';
+export type { ResolvedCommand } from './resolve-command.js';
 export type { LocalCommandResult } from './local-commands.js';
 export { buildSystemPrompt, buildUserMessage, buildGrammarReference } from './prompt-builder.js';
 export type { PromptContext, PromptOptions } from './prompt-builder.js';

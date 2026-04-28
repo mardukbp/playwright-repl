@@ -844,13 +844,12 @@ export class Extension implements RunHooks {
    * Returns true if ALL tests were handled by bridge, false if any need test-server.
    */
   private async _tryDirectBridge(
-    request: vscodeTypes.TestRunRequest,
-    testRun: vscodeTypes.TestRun,
+    _request: vscodeTypes.TestRunRequest,
+    _testRun: vscodeTypes.TestRun,
   ): Promise<boolean> {
-    // Only when BrowserManager is running (headed mode)
-    const browserManager = this._browserController.browserManager;
-    if (!browserManager?.isRunning() || !browserManager.bridge)
-      return false;
+    // Relay mode: tests run via standard Playwright test runner with connectWsEndpoint.
+    // No bridge compilation needed — the test runner connects to the shared browser.
+    return false;
 
     const bridgeUtils = require('@playwright-repl/runner/dist/bridge-utils.cjs') as {
       needsNode: (filePath: string) => boolean;

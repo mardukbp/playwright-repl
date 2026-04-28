@@ -71,17 +71,10 @@ export class BrowserController {
   }
 
   /** Returns connection info for test runner, or undefined if not in headed mode. */
-  async onWillRunTests(workspaceFolder?: string): Promise<{ connectWsEndpoint: string; resetTestServer: boolean; reusingBrowser: boolean } | undefined> {
-    await this.ensureLaunched(workspaceFolder);
-    if (!this._browserManager?.isRunning() || !this._browserManager.cdpUrl)
-      return undefined;
-    const cdpUrl = this._browserManager.cdpUrl;
-    const httpPort = this._browserManager.httpPort;
-    const needsReset = this._lastCdpUrl !== cdpUrl;
-    this._lastCdpUrl = cdpUrl;
-    if (httpPort)
-      process.env.PW_BRIDGE_PORT = String(httpPort);
-    return { connectWsEndpoint: cdpUrl, resetTestServer: needsReset, reusingBrowser: true };
+  async onWillRunTests(_workspaceFolder?: string): Promise<{ connectWsEndpoint: string; resetTestServer: boolean; reusingBrowser: boolean } | undefined> {
+    // Tests always use ReusedBrowser path (Playwright's backend server) for proper
+    // context reuse and headed mode support. BrowserManager handles REPL/recording/picker.
+    return undefined;
   }
 
   onDidRunTests() {

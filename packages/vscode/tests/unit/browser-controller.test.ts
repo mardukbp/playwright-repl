@@ -61,6 +61,7 @@ function createMockBrowserManager(overrides: Record<string, any> = {}) {
     runCommand: vi.fn(() => ({ text: 'Done', isError: false })),
     runScript: vi.fn(() => ({ text: 'Done', isError: false })),
     onEvent: vi.fn(),
+    onClose: vi.fn(),
     page: null,
     bridge: undefined,
     httpPort: null,

@@ -148,53 +148,13 @@ describe('BrowserController', () => {
     expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Could not launch browser.');
   });
 
-  it('onWillRunTests should return connection info when browser is running with CDP', async () => {
+  it('onWillRunTests should return undefined — tests use ReusedBrowser', async () => {
     mockBm.cdpUrl = 'ws://localhost:1234';
     mockBm.httpPort = 5678;
     mockBm.isRunning.mockReturnValue(true);
     await controller.ensureLaunched();
 
     const result = await controller.onWillRunTests('/workspace');
-    expect(result).toEqual({
-      connectWsEndpoint: 'ws://localhost:1234',
-      resetTestServer: true,
-      reusingBrowser: true,
-    });
-  });
-
-  it('onWillRunTests should return undefined when browser has no CDP URL', async () => {
-    mockBm.isRunning.mockReturnValue(true);
-    mockBm.cdpUrl = undefined;
-    await controller.ensureLaunched();
-
-    const result = await controller.onWillRunTests('/workspace');
     expect(result).toBeUndefined();
-  });
-
-  it('onWillRunTests should detect reset needed when CDP URL changes', async () => {
-    mockBm.isRunning.mockReturnValue(true);
-    mockBm.cdpUrl = 'ws://localhost:1111';
-    await controller.ensureLaunched();
-
-    const result1 = await controller.onWillRunTests('/workspace');
-    expect(result1?.resetTestServer).toBe(true);
-
-    const result2 = await controller.onWillRunTests('/workspace');
-    expect(result2?.resetTestServer).toBe(false);
-
-    mockBm.cdpUrl = 'ws://localhost:2222';
-    const result3 = await controller.onWillRunTests('/workspace');
-    expect(result3?.resetTestServer).toBe(true);
-  });
-
-  it('clearCdpUrl should reset state', async () => {
-    mockBm.isRunning.mockReturnValue(true);
-    mockBm.cdpUrl = 'ws://localhost:1234';
-    await controller.ensureLaunched();
-    await controller.onWillRunTests('/workspace');
-
-    expect(controller.lastCdpUrl).toBe('ws://localhost:1234');
-    controller.clearCdpUrl();
-    expect(controller.lastCdpUrl).toBeUndefined();
   });
 });

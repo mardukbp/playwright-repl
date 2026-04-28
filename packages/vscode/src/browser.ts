@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import path from 'node:path';
 import { resolveCommand, UPDATE_COMMANDS } from '@playwright-repl/core';
+import { recorderInit } from './relay-recorder.js';
 
 // __filename is available at runtime in esbuild's CJS output
 declare const __filename: string;
@@ -81,6 +82,7 @@ export class BrowserManager implements IBrowserManager {
   private _httpPort: number | null = null;
   private _cdpUrl: string | undefined;
   private _eventCallback: ((event: Record<string, unknown>) => void) | null = null;
+  private _recording = false;
 
   constructor(outputChannel: vscode.OutputChannel) {
     this._log = outputChannel;
@@ -106,7 +108,6 @@ export class BrowserManager implements IBrowserManager {
 
     // 2. Launch browser directly — no extension needed
     this._browser = await pw.chromium.launch({
-      channel: 'chromium',
       headless,
       args: [
         '--no-first-run',
@@ -163,6 +164,10 @@ export class BrowserManager implements IBrowserManager {
 
     const trimmed = raw.trim();
 
+    // Recording commands — handled before resolveCommand
+    if (trimmed === 'record-start') return this._startRecording();
+    if (trimmed === 'record-stop') return this._stopRecording();
+
     // Keyword command → resolveCommand → jsExpr
     const resolved = resolveCommand(trimmed);
     if (resolved) {
@@ -218,6 +223,46 @@ export class BrowserManager implements IBrowserManager {
 
   onEvent(fn: ((event: Record<string, unknown>) => void) | null) {
     this._eventCallback = fn;
+  }
+
+  // ─── Recording ───────────────────────────────────────────────────────────
+
+  private async _startRecording(): Promise<CommandResult> {
+    if (this._recording) return { text: 'Already recording', isError: true };
+    if (!this._page) return { text: 'Not connected', isError: true };
+
+    try {
+      // Expose callback for recorder script to send events to Node.js
+      await this._page.exposeFunction('__pwRecordAction', (data: string) => {
+        try {
+          const msg = JSON.parse(data);
+          if (this._eventCallback) this._eventCallback(msg);
+        } catch {}
+      }).catch(() => {
+        // Already exposed from previous recording session — that's fine
+      });
+
+      // Inject recorder script via fn.toString()
+      await this._page.evaluate(`(${recorderInit.toString()})()`);
+
+      this._recording = true;
+      const url = this._page.url();
+      return { text: `Recording started${url ? ': ' + url : ''}`, isError: false };
+    } catch (e: unknown) {
+      return { text: e instanceof Error ? e.message : String(e), isError: true };
+    }
+  }
+
+  private async _stopRecording(): Promise<CommandResult> {
+    if (!this._recording) return { text: 'Not recording', isError: false };
+
+    try {
+      // Call cleanup function injected by recorder script
+      await this._page.evaluate('if (window.__pwRecordCleanup) window.__pwRecordCleanup()');
+    } catch {}
+
+    this._recording = false;
+    return { text: 'Recording stopped', isError: false };
   }
 
   // ─── Internal execution ──────────────────────────────────────────────────

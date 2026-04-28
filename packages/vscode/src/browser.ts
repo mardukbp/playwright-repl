@@ -29,6 +29,7 @@ export interface IBrowserManager {
   runCommand(raw: string, opts?: { includeSnapshot?: boolean }): Promise<CommandResult>;
   runScript(script: string, language?: 'pw' | 'javascript'): Promise<CommandResult>;
   onEvent(fn: ((event: Record<string, unknown>) => void) | null): void;
+  onClose(fn: (() => void) | null): void;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ export class BrowserManager implements IBrowserManager {
   private _httpPort: number | null = null;
   private _cdpUrl: string | undefined;
   private _eventCallback: ((event: Record<string, unknown>) => void) | null = null;
+  private _closeCallback: (() => void) | null = null;
   private _recording = false;
 
   constructor(outputChannel: vscode.OutputChannel) {
@@ -132,6 +134,16 @@ export class BrowserManager implements IBrowserManager {
       this.stop().catch(() => {});
     });
 
+    this._page.on('close', () => {
+      this._log.appendLine('Page closed.');
+      this._page = undefined;
+      // If no more pages, stop the browser
+      if (this._context && this._context.pages().length === 0) {
+        this._log.appendLine('Last page closed — stopping browser.');
+        this.stop().catch(() => {});
+      }
+    });
+
     // 3. Set up event listeners for recording/pick (relay-style)
     this._setupPageListeners();
 
@@ -144,7 +156,9 @@ export class BrowserManager implements IBrowserManager {
   }
 
   async stop() {
+    const onClose = this._closeCallback;
     this._eventCallback = null;
+    this._closeCallback = null;
     if (this._httpServer) {
       await new Promise<void>(r => this._httpServer!.close(() => r()));
       this._httpServer = null;
@@ -157,6 +171,7 @@ export class BrowserManager implements IBrowserManager {
       this._browser = undefined;
     }
     this._running = false;
+    if (onClose) onClose();
   }
 
   async runCommand(raw: string, opts?: { includeSnapshot?: boolean }): Promise<CommandResult> {
@@ -223,6 +238,10 @@ export class BrowserManager implements IBrowserManager {
 
   onEvent(fn: ((event: Record<string, unknown>) => void) | null) {
     this._eventCallback = fn;
+  }
+
+  onClose(fn: (() => void) | null) {
+    this._closeCallback = fn;
   }
 
   // ─── Recording ───────────────────────────────────────────────────────────

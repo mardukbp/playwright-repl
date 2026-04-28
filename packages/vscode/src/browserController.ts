@@ -104,6 +104,9 @@ export class BrowserController {
           headless: false,
           workspaceFolder: resolvedFolder,
         });
+        this._browserManager!.onClose(() => {
+          this._replView?.notifyBrowserDisconnected();
+        });
         this._notifyViewsConnected();
       } finally {
         this._launchPromise = undefined;

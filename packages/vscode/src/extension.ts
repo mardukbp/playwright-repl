@@ -818,19 +818,9 @@ export class Extension implements RunHooks {
       // Force trace viewer update to surface check version errors.
       await this._models.selectedModel()?.updateTraceViewer(mode === 'run')?.willRunTests();
 
-      // Phase 6: Direct bridge execution for bridge-eligible tests
-      // Only attempt bridge when Show Browser is on (bridge needs headed browser + extension)
-      let bridgeHandled = false;
-      if (this._settingsModel.showBrowser.get()) {
-        await this._browserController.ensureLaunched();
-        try {
-          bridgeHandled = await this._tryDirectBridge(request, testRun);
-        } catch (e: unknown) {
-          this._logger.error(`[directBridge] error: ${(e as Error).stack || (e as Error).message}`);
-        }
-      }
-      if (!bridgeHandled)
-        await model.runTests(request, testListener, testRun.token);
+      // Run tests via standard Playwright test runner.
+      // ReusedBrowser handles browser lifecycle and context reuse.
+      await model.runTests(request, testListener, testRun.token);
     }
 
     if (browserDoesNotExist)
@@ -843,14 +833,6 @@ export class Extension implements RunHooks {
    * Try to run tests directly via BrowserManager's bridge, bypassing test-server.
    * Returns true if ALL tests were handled by bridge, false if any need test-server.
    */
-  private async _tryDirectBridge(
-    _request: vscodeTypes.TestRunRequest,
-    _testRun: vscodeTypes.TestRun,
-  ): Promise<boolean> {
-    // Relay mode: tests run via standard Playwright test runner with connectWsEndpoint.
-    // No bridge compilation needed — the test runner connects to the shared browser.
-    return false;
-  }
 
   private _errorReportingListener(testRun: vscodeTypes.TestRun, testItemForGlobalErrors?: vscodeTypes.TestItem) {
     const testListener: reporterTypes.ReporterV2 = {

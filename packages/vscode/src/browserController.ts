@@ -72,7 +72,7 @@ export class BrowserController {
 
   /** Returns connection info for test runner, or undefined if not in headed mode. */
   async onWillRunTests(_workspaceFolder?: string): Promise<{ connectWsEndpoint: string; resetTestServer: boolean; reusingBrowser: boolean } | undefined> {
-    // Tests always use ReusedBrowser path (Playwright's backend server) for proper
+    // Tests use ReusedBrowser path (Playwright's backend server) for proper
     // context reuse and headed mode support. BrowserManager handles REPL/recording/picker.
     return undefined;
   }

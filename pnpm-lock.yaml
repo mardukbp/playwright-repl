@@ -200,24 +200,9 @@ importers:
 
   packages/runner:
     dependencies:
-      '@playwright-repl/browser-extension':
-        specifier: workspace:*
-        version: link:../extension
       '@playwright-repl/core':
         specifier: workspace:*
         version: link:../core
-      acorn:
-        specifier: ^8.16.0
-        version: 8.16.0
-      acorn-walk:
-        specifier: ^8.3.5
-        version: 8.3.5
-      esbuild-wasm:
-        specifier: ^0.27.4
-        version: 0.27.4
-      magic-string:
-        specifier: ^0.30.21
-        version: 0.30.21
     devDependencies:
       '@playwright/test':
         specifier: ^1.59.1
@@ -2145,11 +2130,6 @@ packages:
   es-set-tostringtag@2.1.0:
     resolution: {integrity: sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA==}
     engines: {node: '>= 0.4'}
-
-  esbuild-wasm@0.27.4:
-    resolution: {integrity: sha512-3xhVMcJ8Odvb1QjlWnjBGSYVYESsi3/oJYwLyVvbHOb2CiV4mFtD6x8Lk6JFnRxwEE3fUeVuJLbIxyVQWa867g==}
-    engines: {node: '>=18'}
-    hasBin: true
 
   esbuild@0.25.12:
     resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
@@ -5791,8 +5771,6 @@ snapshots:
       get-intrinsic: 1.3.0
       has-tostringtag: 1.0.2
       hasown: 2.0.2
-
-  esbuild-wasm@0.27.4: {}
 
   esbuild@0.25.12:
     optionalDependencies:

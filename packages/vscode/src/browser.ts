@@ -70,6 +70,8 @@ function formatResult(value: unknown): CommandResult {
 
 export class BrowserManager implements IBrowserManager {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _browserServer: any = undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _browser: any = undefined;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _context: any = undefined;
@@ -108,8 +110,8 @@ export class BrowserManager implements IBrowserManager {
     const headless = opts.headless ?? false;
     this._log.appendLine(`Launching Chromium (${headless ? 'headless' : 'headed'}, relay mode)...`);
 
-    // 2. Launch browser directly — no extension needed
-    this._browser = await pw.chromium.launch({
+    // 2. Launch browser server — test runner can connect via wsEndpoint
+    this._browserServer = await pw.chromium.launchServer({
       headless,
       args: [
         '--no-first-run',
@@ -117,13 +119,16 @@ export class BrowserManager implements IBrowserManager {
         '--disable-background-timer-throttling',
       ],
     });
-    this._context = await this._browser.newContext();
-    this._page = await this._context.newPage();
+    const wsEndpoint = this._browserServer.wsEndpoint();
+    this._cdpUrl = wsEndpoint;
+    this._log.appendLine(`Browser server: ${wsEndpoint}`);
+
+    // Connect to the browser server for REPL use
+    this._browser = await pw.chromium.connect(wsEndpoint);
+    this._context = this._browser.contexts()[0] || await this._browser.newContext();
+    this._page = this._context.pages()[0] || await this._context.newPage();
 
     this._log.appendLine(`Chromium launched (relay mode).`);
-
-    // Discover CDP URL for test runner reuse
-    this._cdpUrl = this._browser.browserType().connectOverCDP ? undefined : undefined; // TODO: expose CDP URL if needed
 
     this._browser.on('disconnected', () => {
       this._log.appendLine('Browser disconnected.');
@@ -170,6 +175,11 @@ export class BrowserManager implements IBrowserManager {
       await this._browser.close().catch(() => {});
       this._browser = undefined;
     }
+    if (this._browserServer) {
+      await this._browserServer.close().catch(() => {});
+      this._browserServer = undefined;
+    }
+    this._cdpUrl = undefined;
     this._running = false;
     if (onClose) onClose();
   }

@@ -25,7 +25,7 @@ import { SettingsModel } from './settingsModel';
 import { SettingsView } from './settingsView';
 import { RunHooks, TestModel, TestModelCollection, TestProject } from './testModel';
 import { configError, disabledProjectName as disabledProject, TestTree } from './testTree';
-import { NodeJSNotFoundError, buildBridgeErrorContext, writeBridgeErrorContext, getPlaywrightInfo, stripAnsi, stripBabelFrame, uriToPath } from './utils';
+import { NodeJSNotFoundError, getPlaywrightInfo, stripAnsi, stripBabelFrame, uriToPath } from './utils';
 import * as vscodeTypes from './vscodeTypes';
 import { WorkspaceChange, WorkspaceObserver } from './workspaceObserver';
 import { registerTerminalLinkProvider } from './terminalLinkProvider';
@@ -850,154 +850,6 @@ export class Extension implements RunHooks {
     // Relay mode: tests run via standard Playwright test runner with connectWsEndpoint.
     // No bridge compilation needed — the test runner connects to the shared browser.
     return false;
-
-    const bridgeUtils = require('@playwright-repl/runner/dist/bridge-utils.cjs') as {
-      needsNode: (filePath: string) => boolean;
-      compile: (filePath: string) => Promise<string>;
-      parseAllResults: (text: string) => { status: string; duration: number; errors: { message: string }[] }[];
-      findResultByName: (lines: string[], testName: string) => { status: string; duration: number; errors: { message: string }[] };
-    };
-
-    // Collect test items — only use direct bridge for leaf test items (not folders)
-    const items = request.include || [];
-    if (!items.length)
-      return false;
-
-    // If any top-level item is not a test file, fall back to test runner.
-    // Folders and non-test items are best handled by the standard multi-worker path.
-    for (const item of items) {
-      if (!item.uri)
-        return false;
-      if (!/\.(spec|test)\.[tj]sx?$/.test(item.uri.fsPath))
-        return false;
-    }
-
-    // Collect leaf test items from request — expand files/describes into their children
-    const fileToItems = new Map<string, vscodeTypes.TestItem[]>();
-
-    const collectLeaves = (item: vscodeTypes.TestItem) => {
-      if (item.children.size === 0) {
-        // Leaf test item
-        if (!item.uri) return;
-        const filePath = uriToPath(item.uri);
-        let group = fileToItems.get(filePath);
-        if (!group) { group = []; fileToItems.set(filePath, group); }
-        group.push(item);
-      } else {
-        // File or describe — recurse into children
-        item.children.forEach(child => collectLeaves(child));
-      }
-    };
-
-    for (const item of items)
-      collectLeaves(item);
-
-    if (fileToItems.size === 0)
-      return false;
-
-    // Check all files are bridge-eligible
-    for (const filePath of fileToItems.keys()) {
-      if (bridgeUtils.needsNode(filePath))
-        return false;
-    }
-
-    // Run bridge-eligible tests directly
-    const bridge = browserManager.bridge!;
-
-    for (const [filePath, testItems] of fileToItems) {
-      // Compile test file
-      let compiled: string;
-      try {
-        compiled = await bridgeUtils.compile(filePath);
-      } catch (e: unknown) {
-        // If esbuild binary is missing, fall back to standard runner
-        if ((e as Error).message?.includes('esbuild'))
-          return false;
-        for (const testItem of testItems) {
-          testRun.started(testItem);
-          testRun.failed(testItem, [{ message: `Compile error: ${(e as Error).message}` }], 0);
-        }
-        continue;
-      }
-
-      // Build full test title paths (walk parent chain: describe > test)
-      // Stop at the file-level item (its label is a filename like *.spec.ts)
-      const fullNames: string[] = [];
-      for (const testItem of testItems) {
-        const parts: string[] = [];
-        let current: vscodeTypes.TestItem | undefined = testItem;
-        while (current) {
-          // Stop if this item's label looks like a filename
-          if (/\.(spec|test)\.[tj]sx?$/.test(current.label))
-            break;
-          parts.unshift(current.label);
-          current = current.parent;
-        }
-        fullNames.push(parts.join(' > '));
-      }
-
-      // Build grep pattern from full test names
-      const escapedNames = fullNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-      const grepPattern = '^(' + escapedNames.join('|') + ')$';
-
-      // Build script
-      let script = 'globalThis.__resetTestState();\n';
-      script += 'globalThis.__setGrepExact(' + JSON.stringify(grepPattern) + ');\n';
-      script += compiled + '\n';
-      script += 'await globalThis.__runTests();';
-
-      // Mark all tests as started
-      for (const testItem of testItems)
-        testRun.started(testItem);
-
-      // Execute via bridge
-      const result = await bridge.runScript(script, 'javascript');
-      const outputText = result.text || '';
-      testRun.appendOutput(outputText.replace(/\n/g, '\r\n'));
-      // Map results back to test items by name (not index — results include
-      // skipped tests from grep filtering, so indices don't match testItems)
-      const outputLines = outputText.split('\n');
-      for (let i = 0; i < testItems.length; i++) {
-        const testItem = testItems[i];
-
-        if (result.isError) {
-          const wsFolder = this._vscode.workspace.getWorkspaceFolder(testItem.uri!)?.uri.fsPath;
-          const errorText = result.text || 'Bridge execution failed';
-          const pageSnapshot = await this._tryCaptureSnapshot(bridge);
-          const fallbackLine = testItem.range ? testItem.range.start.line + 1 : undefined;
-          const mdContext = buildBridgeErrorContext(fullNames[i], filePath, errorText, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: true, fallbackLine });
-          const panelContext = buildBridgeErrorContext(fullNames[i], filePath, errorText, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: false, fallbackLine });
-          if (wsFolder) writeBridgeErrorContext(fullNames[i], wsFolder, mdContext);
-          const testMessage = this._testMessageFromText(errorText, panelContext);
-          if (testItem.uri && testItem.range)
-            testMessage.location = new this._vscode.Location(testItem.uri, testItem.range.start);
-          testRun.failed(testItem, [testMessage], 0);
-          continue;
-        }
-
-        const testResult = bridgeUtils.findResultByName(outputLines, fullNames[i]);
-
-        if (testResult.status === 'passed')
-          testRun.passed(testItem, testResult.duration);
-        else if (testResult.status === 'skipped')
-          testRun.skipped(testItem);
-        else {
-          const errorMsg = testResult.errors.map((e: { message: string }) => e.message).join('\n');
-          const wsFolder = this._vscode.workspace.getWorkspaceFolder(testItem.uri!)?.uri.fsPath;
-          const pageSnapshot = await this._tryCaptureSnapshot(bridge);
-          const fallbackLine = testItem.range ? testItem.range.start.line + 1 : undefined;
-          const mdContext = buildBridgeErrorContext(fullNames[i], filePath, errorMsg, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: true, fallbackLine });
-          const panelContext = buildBridgeErrorContext(fullNames[i], filePath, errorMsg, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: false, fallbackLine });
-          if (wsFolder) writeBridgeErrorContext(fullNames[i], wsFolder, mdContext);
-          const testMessage = this._testMessageFromText(errorMsg, panelContext);
-          if (testItem.uri && testItem.range)
-            testMessage.location = new this._vscode.Location(testItem.uri, testItem.range.start);
-          testRun.failed(testItem, [testMessage], testResult.duration);
-        }
-      }
-    }
-
-    return true;
   }
 
   private _errorReportingListener(testRun: vscodeTypes.TestRun, testItemForGlobalErrors?: vscodeTypes.TestItem) {
@@ -1031,16 +883,6 @@ export class Extension implements RunHooks {
    * Best-effort: capture a page snapshot from the bridge for use in error-context.
    * Returns undefined if the snapshot fails (e.g. page is closed).
    */
-  private async _tryCaptureSnapshot(bridge: { run: (cmd: string, opts?: { timeout?: number }) => Promise<{ text?: string; isError?: boolean }> }): Promise<string | undefined> {
-    try {
-      const result = await bridge.run('snapshot', { timeout: 3000 });
-      if (result.isError || !result.text) return undefined;
-      return result.text;
-    } catch {
-      return undefined;
-    }
-  }
-
   private _extractAIContext(result: reporterTypes.TestResult): string | undefined {
     const attachment = result.attachments.find(a => ['_error-context', 'error-context'].includes(a.name));
     if (!attachment)

@@ -24,7 +24,7 @@ import { ReusedBrowser } from './reusedBrowser';
 import { SettingsModel } from './settingsModel';
 import { SettingsView } from './settingsView';
 import { RunHooks, TestModel, TestModelCollection, TestProject } from './testModel';
-import { configError, disabledProjectName as disabledProject, TestTree } from './testTree';
+import { configError, disabledProjectName as disabledProject, TestTree, upstreamTreeItem } from './testTree';
 import { NodeJSNotFoundError, getPlaywrightInfo, stripAnsi, stripBabelFrame, uriToPath } from './utils';
 import * as vscodeTypes from './vscodeTypes';
 import { WorkspaceChange, WorkspaceObserver } from './workspaceObserver';
@@ -40,6 +40,7 @@ import { AssertView } from './assertView';
 import { VSCodeLMProvider } from './ai/provider';
 import { registerChatParticipant } from './ai/chatParticipant';
 import { BrowserController } from './browserController';
+import { InProcessRunner, type InProcessTestResult } from './in-process-runner';
 
 const stackUtils = new StackUtils({
   cwd: '/ensure_absolute_paths'
@@ -666,13 +667,30 @@ export class Extension implements RunHooks {
     }
 
     try {
-      for (const model of this._models.enabledModels()) {
-        const result = model.narrowDownLocations(request);
-        if (!result.testIds && !result.locations)
-          continue;
-        if (!model.enabledProjects().length)
-          continue;
-        await this._runTest(this._testRun, request, testItemForGlobalErrors, new Set(), model, mode, enqueuedTests.length === 1);
+      // Show Browser + non-debug: execute in-process against BrowserManager's shared page
+      const showBrowser = this._settingsModel.showBrowser.get();
+      let handledInProcess = false;
+      if (showBrowser && mode !== 'debug') {
+        try {
+          await this._browserController.ensureLaunched();
+          if (this._browserController.browserManager?.isRunning()) {
+            await this._runTestsInProcess(request, this._testRun);
+            handledInProcess = true;
+          }
+        } catch (e: unknown) {
+          this._logger.warn(`[test] in-process failed, falling back to standard runner: ${(e as Error).message}`);
+        }
+      }
+
+      if (!handledInProcess) {
+        for (const model of this._models.enabledModels()) {
+          const result = model.narrowDownLocations(request);
+          if (!result.testIds && !result.locations)
+            continue;
+          if (!model.enabledProjects().length)
+            continue;
+          await this._runTest(this._testRun, request, testItemForGlobalErrors, new Set(), model, mode, enqueuedTests.length === 1);
+        }
       }
     } finally {
       this._activeSteps.clear();
@@ -827,12 +845,170 @@ export class Extension implements RunHooks {
       await installBrowsers(this._vscode, model);
   }
 
-  // ─── Phase 6: Direct bridge execution ──────────────────────────────────────
+  // ─── In-process test execution (relay mode) ─────────────────────────────────
 
   /**
-   * Try to run tests directly via BrowserManager's bridge, bypassing test-server.
-   * Returns true if ALL tests were handled by bridge, false if any need test-server.
+   * Run tests in-process against BrowserManager's shared page/context.
+   * Compiles test files via esbuild, executes with real Playwright objects,
+   * returns structured results mapped back to VS Code TestItems.
    */
+  private async _runTestsInProcess(
+    request: vscodeTypes.TestRunRequest,
+    testRun: vscodeTypes.TestRun,
+  ): Promise<void> {
+    const browserManager = this._browserController.browserManager;
+    if (!browserManager?.isRunning() || !browserManager.page)
+      throw new Error('Browser not running');
+
+    // Resolve expect from workspace's @playwright/test
+    const workspaceFolder = this._vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const resolveFrom = workspaceFolder
+      ? path.join(workspaceFolder, 'package.json')
+      : __filename;
+    const projectRequire = createRequire(resolveFrom);
+    const expect = projectRequire('@playwright/test').expect;
+
+    const page = browserManager.page;
+    const context = page.context();
+    const runner = new InProcessRunner(page, context, expect, this._logger);
+
+    // Collect file paths and resolved test items from the request.
+    // No test server dependency — files discovered from the tree's own URIs.
+    const rootItems: vscodeTypes.TestItem[] = [];
+    this._testController.items.forEach(item => rootItems.push(item));
+    const toCollect = request.include?.length ? request.include : rootItems;
+
+    const fileToItems = new Map<string, vscodeTypes.TestItem[]>();
+    const itemToName = new Map<vscodeTypes.TestItem, string>();
+
+    const collectFromTree = (item: vscodeTypes.TestItem) => {
+      const treeItem = upstreamTreeItem(item as vscodeTypes.TreeItem);
+
+      if (treeItem?.kind === 'group' && treeItem.subKind === 'file' && item.uri) {
+        // File item — collect resolved test children, or add file itself
+        const filePath = uriToPath(item.uri);
+        const tests = this._testTree.collectTestsInside(item);
+        if (tests.length) {
+          for (const t of tests) {
+            if (!fileToItems.has(filePath))
+              fileToItems.set(filePath, []);
+            fileToItems.get(filePath)!.push(t);
+            itemToName.set(t, this._buildTestName(t));
+          }
+        } else {
+          // Unresolved file — run all tests, report at file level
+          if (!fileToItems.has(filePath))
+            fileToItems.set(filePath, []);
+          fileToItems.get(filePath)!.push(item);
+          itemToName.set(item, ''); // empty name = file-level aggregate
+        }
+      } else if ((treeItem?.kind === 'case' || treeItem?.kind === 'test') && treeItem?.test && item.uri) {
+        // Individual test item
+        const filePath = uriToPath(item.uri);
+        if (!fileToItems.has(filePath))
+          fileToItems.set(filePath, []);
+        fileToItems.get(filePath)!.push(item);
+        itemToName.set(item, this._buildTestName(item));
+      } else {
+        // Group (folder, describe, etc.) — recurse
+        item.children.forEach(child => collectFromTree(child));
+      }
+    };
+    for (const item of toCollect) collectFromTree(item);
+
+    if (!fileToItems.size)
+      return;
+
+    // Enqueue all items
+    for (const items of fileToItems.values())
+      for (const item of items) testRun.enqueued(item);
+
+    this._logger.info(`[test] in-process: ${fileToItems.size} file(s), ${[...fileToItems.values()].reduce((n, v) => n + v.length, 0)} item(s)`);
+
+    for (const [filePath, items] of fileToItems) {
+      // Build grep from unique test names for this file
+      const names = [...new Set(items.map(i => itemToName.get(i)!).filter(n => n.length > 0))];
+      const grep = names.length > 0
+        ? new RegExp('^(' + names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')$')
+        : undefined;
+
+      for (const item of items) testRun.started(item);
+
+      try {
+        this._logger.info(`[test] running ${path.basename(filePath)} (${items.length} tests, grep=${grep?.source ?? 'none'})`);
+        const results = await runner.runTestFile(filePath, grep);
+        this._logger.info(`[test] ${path.basename(filePath)}: ${results.length} results`);
+
+        // Output summary
+        for (const r of results) {
+          if (r.skipped)
+            testRun.appendOutput(`  - ${r.name} (skipped)\r\n`);
+          else if (r.passed)
+            testRun.appendOutput(`  \u2713 ${r.name} (${r.duration}ms)\r\n`);
+          else
+            testRun.appendOutput(`  \u2717 ${r.name} (${r.duration}ms)\r\n    ${r.error}\r\n`);
+        }
+
+        // Build a name->result map for O(1) lookup
+        const resultByName = new Map<string, InProcessTestResult>();
+        for (const r of results)
+          resultByName.set(r.name, r);
+
+        for (const item of items) {
+          const name = itemToName.get(item)!;
+          const result = name ? resultByName.get(name) : undefined;
+
+          if (!name) {
+            // File-level item (unresolved children) — aggregate all results
+            const failed = results.filter(r => !r.passed && !r.skipped);
+            const totalDuration = results.reduce((s, r) => s + r.duration, 0);
+            if (failed.length > 0) {
+              const errors = failed.map(r => `${r.name}: ${r.error || 'failed'}`).join('\n');
+              testRun.failed(item, [this._testMessageFromText(errors)], totalDuration);
+            } else {
+              testRun.passed(item, totalDuration);
+            }
+          } else if (!result || result.skipped) {
+            testRun.skipped(item);
+          } else if (result.passed) {
+            testRun.passed(item, result.duration);
+          } else {
+            const msg = this._testMessageFromText(result.error || 'Test failed');
+            if (item.uri && item.range)
+              msg.location = new this._vscode.Location(item.uri, item.range.start);
+            testRun.failed(item, [msg], result.duration);
+          }
+        }
+      } catch (e: unknown) {
+        this._logger.error(`[test] in-process error for ${path.basename(filePath)}: ${(e as Error).stack || (e as Error).message}`);
+        testRun.appendOutput(`Error in ${path.basename(filePath)}: ${(e as Error).message}\r\n`);
+        for (const item of items) {
+          const msg = this._testMessageFromText((e as Error).message || String(e));
+          testRun.failed(item, [msg], 0);
+        }
+      }
+    }
+  }
+
+  /**
+   * Build full test name from a VS Code TestItem by walking up the tree.
+   * Uses upstreamTreeItem() metadata to skip project-level nodes and stop at files.
+   */
+  private _buildTestName(item: vscodeTypes.TestItem): string {
+    const parts: string[] = [];
+    let current: vscodeTypes.TestItem | undefined = item;
+    while (current) {
+      const treeItem = upstreamTreeItem(current as vscodeTypes.TreeItem);
+      // Stop at file or folder groups
+      if (treeItem?.kind === 'group' && (treeItem.subKind === 'file' || treeItem.subKind === 'folder'))
+        break;
+      // Skip project-level 'test' nodes (label = project name like "chromium")
+      if (treeItem?.kind !== 'test')
+        parts.unshift(current.label);
+      current = current.parent;
+    }
+    return parts.join(' > ');
+  }
 
   private _errorReportingListener(testRun: vscodeTypes.TestRun, testItemForGlobalErrors?: vscodeTypes.TestItem) {
     const testListener: reporterTypes.ReporterV2 = {

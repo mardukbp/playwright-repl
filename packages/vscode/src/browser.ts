@@ -110,8 +110,10 @@ export class BrowserManager implements IBrowserManager {
     const headless = opts.headless ?? false;
     this._log.appendLine(`Launching Chromium (${headless ? 'headless' : 'headed'}, relay mode)...`);
 
-    // 2. Launch browser server — test runner can connect via wsEndpoint
-    this._browserServer = await pw.chromium.launchServer({
+    // 2. Launch browser directly — CDP pipe, no server proxy hop.
+    //    This gives the fastest possible connection: Node.js → CDP pipe → Chrome.
+    //    (launchServer + connect adds an extra WebSocket proxy layer)
+    this._browser = await pw.chromium.launch({
       headless,
       args: [
         '--no-first-run',
@@ -119,16 +121,9 @@ export class BrowserManager implements IBrowserManager {
         '--disable-background-timer-throttling',
       ],
     });
-    const wsEndpoint = this._browserServer.wsEndpoint();
-    this._cdpUrl = wsEndpoint;
-    this._log.appendLine(`Browser server: ${wsEndpoint}`);
-
-    // Connect to the browser server for REPL use
-    this._browser = await pw.chromium.connect(wsEndpoint);
-    this._context = this._browser.contexts()[0] || await this._browser.newContext();
-    this._page = this._context.pages()[0] || await this._context.newPage();
-
-    this._log.appendLine(`Chromium launched (relay mode).`);
+    this._context = await this._browser.newContext();
+    this._page = await this._context.newPage();
+    this._log.appendLine(`Chromium launched (relay mode, direct CDP pipe).`);
 
     this._browser.on('disconnected', () => {
       this._log.appendLine('Browser disconnected.');

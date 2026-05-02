@@ -9,6 +9,7 @@
  * mutable state, no leaks between calls.
  */
 
+import path from 'path';
 import { createRequire } from 'node:module';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -239,6 +240,7 @@ export class InProcessRunner {
       },
     };
 
+    const fileDir = path.dirname(filePath);
     const result = await esbuild.build({
       entryPoints: [filePath],
       bundle: true,
@@ -246,6 +248,8 @@ export class InProcessRunner {
       format: 'iife',
       platform: 'node',
       plugins: [shimPlugin],
+      // Inject require/__dirname/__filename — not available in AsyncFunction scope
+      banner: { js: `var require=globalThis.require;var __dirname=${JSON.stringify(fileDir)};var __filename=${JSON.stringify(filePath)};` },
       // Node built-ins are external — tests may import fs, path, etc.
       external: [
         'fs', 'path', 'child_process', 'os', 'crypto', 'util',

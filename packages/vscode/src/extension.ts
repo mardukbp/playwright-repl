@@ -667,30 +667,13 @@ export class Extension implements RunHooks {
     }
 
     try {
-      // Show Browser + non-debug: execute in-process against BrowserManager's shared page
-      const showBrowser = this._settingsModel.showBrowser.get();
-      let handledInProcess = false;
-      if (showBrowser && mode !== 'debug') {
-        try {
-          await this._browserController.ensureLaunched();
-          if (this._browserController.browserManager?.isRunning()) {
-            await this._runTestsInProcess(request, this._testRun);
-            handledInProcess = true;
-          }
-        } catch (e: unknown) {
-          this._logger.warn(`[test] in-process failed, falling back to standard runner: ${(e as Error).message}`);
-        }
-      }
-
-      if (!handledInProcess) {
-        for (const model of this._models.enabledModels()) {
-          const result = model.narrowDownLocations(request);
-          if (!result.testIds && !result.locations)
-            continue;
-          if (!model.enabledProjects().length)
-            continue;
-          await this._runTest(this._testRun, request, testItemForGlobalErrors, new Set(), model, mode, enqueuedTests.length === 1);
-        }
+      for (const model of this._models.enabledModels()) {
+        const result = model.narrowDownLocations(request);
+        if (!result.testIds && !result.locations)
+          continue;
+        if (!model.enabledProjects().length)
+          continue;
+        await this._runTest(this._testRun, request, testItemForGlobalErrors, new Set(), model, mode, enqueuedTests.length === 1);
       }
     } finally {
       this._activeSteps.clear();
@@ -836,8 +819,6 @@ export class Extension implements RunHooks {
       // Force trace viewer update to surface check version errors.
       await this._models.selectedModel()?.updateTraceViewer(mode === 'run')?.willRunTests();
 
-      // Run tests via standard Playwright test runner.
-      // ReusedBrowser handles browser lifecycle and context reuse.
       await model.runTests(request, testListener, testRun.token);
     }
 
@@ -848,17 +829,16 @@ export class Extension implements RunHooks {
   // ─── In-process test execution (relay mode) ─────────────────────────────────
 
   /**
-   * Run tests in-process against BrowserManager's shared page/context.
-   * Compiles test files via esbuild, executes with real Playwright objects,
-   * returns structured results mapped back to VS Code TestItems.
+   * Try to run tests in-process against BrowserManager's shared page/context.
+   * Returns true if all tests were handled, false to fall back to standard runner.
    */
-  private async _runTestsInProcess(
+  private async _tryInProcessExecution(
     request: vscodeTypes.TestRunRequest,
     testRun: vscodeTypes.TestRun,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const browserManager = this._browserController.browserManager;
     if (!browserManager?.isRunning() || !browserManager.page)
-      throw new Error('Browser not running');
+      return false;
 
     // Resolve expect from workspace's @playwright/test
     const workspaceFolder = this._vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -872,11 +852,30 @@ export class Extension implements RunHooks {
     const context = page.context();
     const runner = new InProcessRunner(page, context, expect, this._logger);
 
-    // Collect file paths and resolved test items from the request.
-    // No test server dependency — files discovered from the tree's own URIs.
+    // Ensure test tree is populated before collecting items.
+    // Call model.ensureTests directly (not _ensureTestsInAllModels which deadlocks via _queueCommand).
     const rootItems: vscodeTypes.TestItem[] = [];
     this._testController.items.forEach(item => rootItems.push(item));
     const toCollect = request.include?.length ? request.include : rootItems;
+
+    // Discover tests for files not yet expanded in the tree.
+    // Batch all files into a single ensureTests call to minimize overhead.
+    const unexpandedFiles: string[] = [];
+    const collectUnexpanded = (item: vscodeTypes.TestItem) => {
+      const treeItem = upstreamTreeItem(item as vscodeTypes.TreeItem);
+      if (treeItem?.kind === 'group' && treeItem.subKind === 'file' && item.uri) {
+        if (!this._testTree.collectTestsInside(item).length)
+          unexpandedFiles.push(uriToPath(item.uri));
+      } else {
+        item.children.forEach(child => collectUnexpanded(child));
+      }
+    };
+    for (const item of toCollect) collectUnexpanded(item);
+    if (unexpandedFiles.length) {
+      this._logger.info(`[test] discovering ${unexpandedFiles.length} unexpanded files`);
+      for (const model of this._models.enabledModels())
+        await model.ensureTests(unexpandedFiles);
+    }
 
     const fileToItems = new Map<string, vscodeTypes.TestItem[]>();
     const itemToName = new Map<vscodeTypes.TestItem, string>();
@@ -917,7 +916,7 @@ export class Extension implements RunHooks {
     for (const item of toCollect) collectFromTree(item);
 
     if (!fileToItems.size)
-      return;
+      return false;
 
     // Enqueue all items
     for (const items of fileToItems.values())
@@ -988,6 +987,7 @@ export class Extension implements RunHooks {
         }
       }
     }
+    return true;
   }
 
   /**

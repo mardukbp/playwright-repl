@@ -1,2 +1,3 @@
-export { needsNode, compile, parseAllResults } from './bridge-utils.cjs';
-export type { TestResultEntry } from './bridge-utils.cjs';
+// Runner package — pw CLI for running Playwright tests.
+// Bridge-utils and shim have been removed (relay mode).
+export {};

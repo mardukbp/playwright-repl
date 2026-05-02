@@ -24,8 +24,8 @@ import { ReusedBrowser } from './reusedBrowser';
 import { SettingsModel } from './settingsModel';
 import { SettingsView } from './settingsView';
 import { RunHooks, TestModel, TestModelCollection, TestProject } from './testModel';
-import { configError, disabledProjectName as disabledProject, TestTree } from './testTree';
-import { NodeJSNotFoundError, buildBridgeErrorContext, writeBridgeErrorContext, getPlaywrightInfo, stripAnsi, stripBabelFrame, uriToPath } from './utils';
+import { configError, disabledProjectName as disabledProject, TestTree, upstreamTreeItem } from './testTree';
+import { NodeJSNotFoundError, getPlaywrightInfo, stripAnsi, stripBabelFrame, uriToPath } from './utils';
 import * as vscodeTypes from './vscodeTypes';
 import { WorkspaceChange, WorkspaceObserver } from './workspaceObserver';
 import { registerTerminalLinkProvider } from './terminalLinkProvider';
@@ -40,6 +40,7 @@ import { AssertView } from './assertView';
 import { VSCodeLMProvider } from './ai/provider';
 import { registerChatParticipant } from './ai/chatParticipant';
 import { BrowserController } from './browserController';
+import { InProcessRunner, type InProcessTestResult } from './in-process-runner';
 
 const stackUtils = new StackUtils({
   cwd: '/ensure_absolute_paths'
@@ -818,187 +819,195 @@ export class Extension implements RunHooks {
       // Force trace viewer update to surface check version errors.
       await this._models.selectedModel()?.updateTraceViewer(mode === 'run')?.willRunTests();
 
-      // Phase 6: Direct bridge execution for bridge-eligible tests
-      // Only attempt bridge when Show Browser is on (bridge needs headed browser + extension)
-      let bridgeHandled = false;
-      if (this._settingsModel.showBrowser.get()) {
-        await this._browserController.ensureLaunched();
-        try {
-          bridgeHandled = await this._tryDirectBridge(request, testRun);
-        } catch (e: unknown) {
-          this._logger.error(`[directBridge] error: ${(e as Error).stack || (e as Error).message}`);
-        }
-      }
-      if (!bridgeHandled)
-        await model.runTests(request, testListener, testRun.token);
+      await model.runTests(request, testListener, testRun.token);
     }
 
     if (browserDoesNotExist)
       await installBrowsers(this._vscode, model);
   }
 
-  // ─── Phase 6: Direct bridge execution ──────────────────────────────────────
+  // ─── In-process test execution (relay mode) ─────────────────────────────────
 
   /**
-   * Try to run tests directly via BrowserManager's bridge, bypassing test-server.
-   * Returns true if ALL tests were handled by bridge, false if any need test-server.
+   * Try to run tests in-process against BrowserManager's shared page/context.
+   * Returns true if all tests were handled, false to fall back to standard runner.
    */
-  private async _tryDirectBridge(
+  private async _tryInProcessExecution(
     request: vscodeTypes.TestRunRequest,
     testRun: vscodeTypes.TestRun,
   ): Promise<boolean> {
-    // Only when BrowserManager is running (headed mode)
     const browserManager = this._browserController.browserManager;
-    if (!browserManager?.isRunning() || !browserManager.bridge)
+    if (!browserManager?.isRunning() || !browserManager.page)
       return false;
 
-    const bridgeUtils = require('@playwright-repl/runner/dist/bridge-utils.cjs') as {
-      needsNode: (filePath: string) => boolean;
-      compile: (filePath: string) => Promise<string>;
-      parseAllResults: (text: string) => { status: string; duration: number; errors: { message: string }[] }[];
-      findResultByName: (lines: string[], testName: string) => { status: string; duration: number; errors: { message: string }[] };
-    };
+    // Resolve expect from workspace's @playwright/test
+    const workspaceFolder = this._vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const resolveFrom = workspaceFolder
+      ? path.join(workspaceFolder, 'package.json')
+      : __filename;
+    const projectRequire = createRequire(resolveFrom);
+    const expect = projectRequire('@playwright/test').expect;
 
-    // Collect test items — only use direct bridge for leaf test items (not folders)
-    const items = request.include || [];
-    if (!items.length)
-      return false;
+    const page = browserManager.page;
+    const context = page.context();
+    const runner = new InProcessRunner(page, context, expect, this._logger);
 
-    // If any top-level item is not a test file, fall back to test runner.
-    // Folders and non-test items are best handled by the standard multi-worker path.
-    for (const item of items) {
-      if (!item.uri)
-        return false;
-      if (!/\.(spec|test)\.[tj]sx?$/.test(item.uri.fsPath))
-        return false;
-    }
+    // Ensure test tree is populated before collecting items.
+    // Call model.ensureTests directly (not _ensureTestsInAllModels which deadlocks via _queueCommand).
+    const rootItems: vscodeTypes.TestItem[] = [];
+    this._testController.items.forEach(item => rootItems.push(item));
+    const toCollect = request.include?.length ? request.include : rootItems;
 
-    // Collect leaf test items from request — expand files/describes into their children
-    const fileToItems = new Map<string, vscodeTypes.TestItem[]>();
-
-    const collectLeaves = (item: vscodeTypes.TestItem) => {
-      if (item.children.size === 0) {
-        // Leaf test item
-        if (!item.uri) return;
-        const filePath = uriToPath(item.uri);
-        let group = fileToItems.get(filePath);
-        if (!group) { group = []; fileToItems.set(filePath, group); }
-        group.push(item);
+    // Discover tests for files not yet expanded in the tree.
+    // Batch all files into a single ensureTests call to minimize overhead.
+    const unexpandedFiles: string[] = [];
+    const collectUnexpanded = (item: vscodeTypes.TestItem) => {
+      const treeItem = upstreamTreeItem(item as vscodeTypes.TreeItem);
+      if (treeItem?.kind === 'group' && treeItem.subKind === 'file' && item.uri) {
+        if (!this._testTree.collectTestsInside(item).length)
+          unexpandedFiles.push(uriToPath(item.uri));
       } else {
-        // File or describe — recurse into children
-        item.children.forEach(child => collectLeaves(child));
+        item.children.forEach(child => collectUnexpanded(child));
       }
     };
+    for (const item of toCollect) collectUnexpanded(item);
+    if (unexpandedFiles.length) {
+      this._logger.info(`[test] discovering ${unexpandedFiles.length} unexpanded files`);
+      for (const model of this._models.enabledModels())
+        await model.ensureTests(unexpandedFiles);
+    }
 
-    for (const item of items)
-      collectLeaves(item);
+    const fileToItems = new Map<string, vscodeTypes.TestItem[]>();
+    const itemToName = new Map<vscodeTypes.TestItem, string>();
 
-    if (fileToItems.size === 0)
+    const collectFromTree = (item: vscodeTypes.TestItem) => {
+      const treeItem = upstreamTreeItem(item as vscodeTypes.TreeItem);
+
+      if (treeItem?.kind === 'group' && treeItem.subKind === 'file' && item.uri) {
+        // File item — collect resolved test children, or add file itself
+        const filePath = uriToPath(item.uri);
+        const tests = this._testTree.collectTestsInside(item);
+        if (tests.length) {
+          for (const t of tests) {
+            if (!fileToItems.has(filePath))
+              fileToItems.set(filePath, []);
+            fileToItems.get(filePath)!.push(t);
+            itemToName.set(t, this._buildTestName(t));
+          }
+        } else {
+          // Unresolved file — run all tests, report at file level
+          if (!fileToItems.has(filePath))
+            fileToItems.set(filePath, []);
+          fileToItems.get(filePath)!.push(item);
+          itemToName.set(item, ''); // empty name = file-level aggregate
+        }
+      } else if ((treeItem?.kind === 'case' || treeItem?.kind === 'test') && treeItem?.test && item.uri) {
+        // Individual test item
+        const filePath = uriToPath(item.uri);
+        if (!fileToItems.has(filePath))
+          fileToItems.set(filePath, []);
+        fileToItems.get(filePath)!.push(item);
+        itemToName.set(item, this._buildTestName(item));
+      } else {
+        // Group (folder, describe, etc.) — recurse
+        item.children.forEach(child => collectFromTree(child));
+      }
+    };
+    for (const item of toCollect) collectFromTree(item);
+
+    if (!fileToItems.size)
       return false;
 
-    // Check all files are bridge-eligible
-    for (const filePath of fileToItems.keys()) {
-      if (bridgeUtils.needsNode(filePath))
-        return false;
-    }
+    // Enqueue all items
+    for (const items of fileToItems.values())
+      for (const item of items) testRun.enqueued(item);
 
-    // Run bridge-eligible tests directly
-    const bridge = browserManager.bridge!;
+    this._logger.info(`[test] in-process: ${fileToItems.size} file(s), ${[...fileToItems.values()].reduce((n, v) => n + v.length, 0)} item(s)`);
 
-    for (const [filePath, testItems] of fileToItems) {
-      // Compile test file
-      let compiled: string;
+    for (const [filePath, items] of fileToItems) {
+      // Build grep from unique test names for this file
+      const names = [...new Set(items.map(i => itemToName.get(i)!).filter(n => n.length > 0))];
+      const grep = names.length > 0
+        ? new RegExp('^(' + names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')$')
+        : undefined;
+
+      for (const item of items) testRun.started(item);
+
       try {
-        compiled = await bridgeUtils.compile(filePath);
+        this._logger.info(`[test] running ${path.basename(filePath)} (${items.length} tests, grep=${grep?.source ?? 'none'})`);
+        const results = await runner.runTestFile(filePath, grep);
+        this._logger.info(`[test] ${path.basename(filePath)}: ${results.length} results`);
+
+        // Output summary
+        for (const r of results) {
+          if (r.skipped)
+            testRun.appendOutput(`  - ${r.name} (skipped)\r\n`);
+          else if (r.passed)
+            testRun.appendOutput(`  \u2713 ${r.name} (${r.duration}ms)\r\n`);
+          else
+            testRun.appendOutput(`  \u2717 ${r.name} (${r.duration}ms)\r\n    ${r.error}\r\n`);
+        }
+
+        // Build a name->result map for O(1) lookup
+        const resultByName = new Map<string, InProcessTestResult>();
+        for (const r of results)
+          resultByName.set(r.name, r);
+
+        for (const item of items) {
+          const name = itemToName.get(item)!;
+          const result = name ? resultByName.get(name) : undefined;
+
+          if (!name) {
+            // File-level item (unresolved children) — aggregate all results
+            const failed = results.filter(r => !r.passed && !r.skipped);
+            const totalDuration = results.reduce((s, r) => s + r.duration, 0);
+            if (failed.length > 0) {
+              const errors = failed.map(r => `${r.name}: ${r.error || 'failed'}`).join('\n');
+              testRun.failed(item, [this._testMessageFromText(errors)], totalDuration);
+            } else {
+              testRun.passed(item, totalDuration);
+            }
+          } else if (!result || result.skipped) {
+            testRun.skipped(item);
+          } else if (result.passed) {
+            testRun.passed(item, result.duration);
+          } else {
+            const msg = this._testMessageFromText(result.error || 'Test failed');
+            if (item.uri && item.range)
+              msg.location = new this._vscode.Location(item.uri, item.range.start);
+            testRun.failed(item, [msg], result.duration);
+          }
+        }
       } catch (e: unknown) {
-        // If esbuild binary is missing, fall back to standard runner
-        if ((e as Error).message?.includes('esbuild'))
-          return false;
-        for (const testItem of testItems) {
-          testRun.started(testItem);
-          testRun.failed(testItem, [{ message: `Compile error: ${(e as Error).message}` }], 0);
-        }
-        continue;
-      }
-
-      // Build full test title paths (walk parent chain: describe > test)
-      // Stop at the file-level item (its label is a filename like *.spec.ts)
-      const fullNames: string[] = [];
-      for (const testItem of testItems) {
-        const parts: string[] = [];
-        let current: vscodeTypes.TestItem | undefined = testItem;
-        while (current) {
-          // Stop if this item's label looks like a filename
-          if (/\.(spec|test)\.[tj]sx?$/.test(current.label))
-            break;
-          parts.unshift(current.label);
-          current = current.parent;
-        }
-        fullNames.push(parts.join(' > '));
-      }
-
-      // Build grep pattern from full test names
-      const escapedNames = fullNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-      const grepPattern = '^(' + escapedNames.join('|') + ')$';
-
-      // Build script
-      let script = 'globalThis.__resetTestState();\n';
-      script += 'globalThis.__setGrepExact(' + JSON.stringify(grepPattern) + ');\n';
-      script += compiled + '\n';
-      script += 'await globalThis.__runTests();';
-
-      // Mark all tests as started
-      for (const testItem of testItems)
-        testRun.started(testItem);
-
-      // Execute via bridge
-      const result = await bridge.runScript(script, 'javascript');
-      const outputText = result.text || '';
-      testRun.appendOutput(outputText.replace(/\n/g, '\r\n'));
-      // Map results back to test items by name (not index — results include
-      // skipped tests from grep filtering, so indices don't match testItems)
-      const outputLines = outputText.split('\n');
-      for (let i = 0; i < testItems.length; i++) {
-        const testItem = testItems[i];
-
-        if (result.isError) {
-          const wsFolder = this._vscode.workspace.getWorkspaceFolder(testItem.uri!)?.uri.fsPath;
-          const errorText = result.text || 'Bridge execution failed';
-          const pageSnapshot = await this._tryCaptureSnapshot(bridge);
-          const fallbackLine = testItem.range ? testItem.range.start.line + 1 : undefined;
-          const mdContext = buildBridgeErrorContext(fullNames[i], filePath, errorText, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: true, fallbackLine });
-          const panelContext = buildBridgeErrorContext(fullNames[i], filePath, errorText, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: false, fallbackLine });
-          if (wsFolder) writeBridgeErrorContext(fullNames[i], wsFolder, mdContext);
-          const testMessage = this._testMessageFromText(errorText, panelContext);
-          if (testItem.uri && testItem.range)
-            testMessage.location = new this._vscode.Location(testItem.uri, testItem.range.start);
-          testRun.failed(testItem, [testMessage], 0);
-          continue;
-        }
-
-        const testResult = bridgeUtils.findResultByName(outputLines, fullNames[i]);
-
-        if (testResult.status === 'passed')
-          testRun.passed(testItem, testResult.duration);
-        else if (testResult.status === 'skipped')
-          testRun.skipped(testItem);
-        else {
-          const errorMsg = testResult.errors.map((e: { message: string }) => e.message).join('\n');
-          const wsFolder = this._vscode.workspace.getWorkspaceFolder(testItem.uri!)?.uri.fsPath;
-          const pageSnapshot = await this._tryCaptureSnapshot(bridge);
-          const fallbackLine = testItem.range ? testItem.range.start.line + 1 : undefined;
-          const mdContext = buildBridgeErrorContext(fullNames[i], filePath, errorMsg, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: true, fallbackLine });
-          const panelContext = buildBridgeErrorContext(fullNames[i], filePath, errorMsg, { workspaceFolder: wsFolder, pageSnapshot, useCodeFences: false, fallbackLine });
-          if (wsFolder) writeBridgeErrorContext(fullNames[i], wsFolder, mdContext);
-          const testMessage = this._testMessageFromText(errorMsg, panelContext);
-          if (testItem.uri && testItem.range)
-            testMessage.location = new this._vscode.Location(testItem.uri, testItem.range.start);
-          testRun.failed(testItem, [testMessage], testResult.duration);
+        this._logger.error(`[test] in-process error for ${path.basename(filePath)}: ${(e as Error).stack || (e as Error).message}`);
+        testRun.appendOutput(`Error in ${path.basename(filePath)}: ${(e as Error).message}\r\n`);
+        for (const item of items) {
+          const msg = this._testMessageFromText((e as Error).message || String(e));
+          testRun.failed(item, [msg], 0);
         }
       }
     }
-
     return true;
+  }
+
+  /**
+   * Build full test name from a VS Code TestItem by walking up the tree.
+   * Uses upstreamTreeItem() metadata to skip project-level nodes and stop at files.
+   */
+  private _buildTestName(item: vscodeTypes.TestItem): string {
+    const parts: string[] = [];
+    let current: vscodeTypes.TestItem | undefined = item;
+    while (current) {
+      const treeItem = upstreamTreeItem(current as vscodeTypes.TreeItem);
+      // Stop at file or folder groups
+      if (treeItem?.kind === 'group' && (treeItem.subKind === 'file' || treeItem.subKind === 'folder'))
+        break;
+      // Skip project-level 'test' nodes (label = project name like "chromium")
+      if (treeItem?.kind !== 'test')
+        parts.unshift(current.label);
+      current = current.parent;
+    }
+    return parts.join(' > ');
   }
 
   private _errorReportingListener(testRun: vscodeTypes.TestRun, testItemForGlobalErrors?: vscodeTypes.TestItem) {
@@ -1032,16 +1041,6 @@ export class Extension implements RunHooks {
    * Best-effort: capture a page snapshot from the bridge for use in error-context.
    * Returns undefined if the snapshot fails (e.g. page is closed).
    */
-  private async _tryCaptureSnapshot(bridge: { run: (cmd: string, opts?: { timeout?: number }) => Promise<{ text?: string; isError?: boolean }> }): Promise<string | undefined> {
-    try {
-      const result = await bridge.run('snapshot', { timeout: 3000 });
-      if (result.isError || !result.text) return undefined;
-      return result.text;
-    } catch {
-      return undefined;
-    }
-  }
-
   private _extractAIContext(result: reporterTypes.TestResult): string | undefined {
     const attachment = result.attachments.find(a => ['_error-context', 'error-context'].includes(a.name));
     if (!attachment)

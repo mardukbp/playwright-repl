@@ -1,6 +1,7 @@
 import type * as vscode from 'vscode';
 import { createRequire } from 'node:module';
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
+import net from 'node:net';
 import path from 'node:path';
 import { resolveCommand, UPDATE_COMMANDS } from '@playwright-repl/core';
 import { recorderInit } from './relay-recorder.js';
@@ -70,6 +71,7 @@ function formatResult(value: unknown): CommandResult {
 export class BrowserManager implements IBrowserManager {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _browserServer: any = undefined;
+  private _requireFn: NodeRequire | undefined = undefined;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _browser: any = undefined;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,26 +104,43 @@ export class BrowserManager implements IBrowserManager {
       ? createRequire(path.join(opts.workspaceFolder, 'package.json'))
       : _extRequire;
 
-    // 1. Load Playwright
-    const pw = _require('@playwright/test');
-    this._expect = pw.expect;
     const headless = opts.headless ?? false;
     this._log.appendLine(`Launching Chromium (${headless ? 'headless' : 'headed'}, relay mode)...`);
 
-    // 2. Launch browser directly — CDP pipe, no server proxy hop.
-    //    This gives the fastest possible connection: Node.js → CDP pipe → Chrome.
-    //    (launchServer + connect adds an extra WebSocket proxy layer)
-    this._browser = await pw.chromium.launch({
+    // 1. Reserve a port, then launch via playwright-core (all default Chrome args).
+    //    Chrome listens on both pipe (Playwright) and port (test workers via CDP).
+    const debuggingPort = await new Promise<number>((resolve, reject) => {
+      const srv = net.createServer();
+      srv.listen(0, () => {
+        const port = (srv.address() as net.AddressInfo).port;
+        srv.close(() => resolve(port));
+      });
+      srv.on('error', reject);
+    });
+
+    const pwCore = _require('playwright-core');
+    this._browser = await pwCore.chromium.launch({
       headless,
       args: [
         '--no-first-run',
         '--no-default-browser-check',
         '--disable-background-timer-throttling',
+        `--remote-debugging-port=${debuggingPort}`,
       ],
     });
+
+    // 2. Fetch CDP URL from the known debugging port
+    try {
+      const resp = await fetch(`http://127.0.0.1:${debuggingPort}/json/version`);
+      const { webSocketDebuggerUrl } = await resp.json() as { webSocketDebuggerUrl: string };
+      this._cdpUrl = webSocketDebuggerUrl;
+    } catch {}
+
     this._context = await this._browser.newContext();
     this._page = await this._context.newPage();
-    this._log.appendLine(`Chromium launched (relay mode, direct CDP pipe).`);
+    this._log.appendLine(`Chromium launched (relay mode, CDP: ${this._cdpUrl || 'n/a'}).`);
+    // Load expect lazily (avoid loading @playwright/test in extension host)
+    this._requireFn = _require;
 
     this._browser.on('disconnected', () => {
       this._log.appendLine('Browser disconnected.');
@@ -135,11 +154,6 @@ export class BrowserManager implements IBrowserManager {
     this._page.on('close', () => {
       this._log.appendLine('Page closed.');
       this._page = undefined;
-      // If no more pages, stop the browser
-      if (this._context && this._context.pages().length === 0) {
-        this._log.appendLine('Last page closed — stopping browser.');
-        this.stop().catch(() => {});
-      }
     });
 
     // 3. Set up event listeners for recording/pick (relay-style)
@@ -291,6 +305,9 @@ export class BrowserManager implements IBrowserManager {
 
   private async _execExpr(jsExpr: string): Promise<CommandResult> {
     try {
+      if (!this._expect && this._requireFn) {
+        try { this._expect = this._requireFn('@playwright/test').expect; } catch {}
+      }
       const fn = new AsyncFunction('page', 'context', 'expect', jsExpr);
       const result = await fn(this._page, this._context, this._expect);
       return formatResult(result);
